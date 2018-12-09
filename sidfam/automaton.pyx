@@ -13,6 +13,10 @@ cdef Automaton *create_automaton() except NULL:
         raise MemoryError()
     automaton.state_count = 2  # 0: initial state, 1: accepted state
     automaton.transition_list = transition_list
+    # print(
+    #     f'create automaton {<unsigned long long> automaton:x} '
+    #     f'with transition_list {<unsigned long long> transition_list:x}'
+    # )
     return automaton
 
 cdef release_automaton(Automaton *automaton):
@@ -20,11 +24,15 @@ cdef release_automaton(Automaton *automaton):
     PyMem_Free(automaton)
 
 cdef append_transition(
-    Automaton *automaton, 
-    int src_state, int dst_state, 
-    int guard, int require, int update, 
+    Automaton *automaton,
+    int src_state, int dst_state,
+    int guard, int require, int update,
     int next_hop
 ):
+    # print(
+    #     f'append_transition at automaton: '
+    #     f'{<unsigned long long> automaton:x}'
+    # )
     cdef Transition transition
     transition.src_state = src_state
     transition.dst_state = dst_state

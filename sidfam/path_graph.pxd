@@ -11,12 +11,14 @@ cdef struct Node:
     int update
     int next_hop
     bint accepted
-    
+
 cdef struct PathGraph:
     vector[Node] *node_list
     vector[vector[int]] *edge_map
-    
+
 cdef PathGraph *create_path_graph(
-    Automaton *automaton, int src_state, int dst_switch, 
+    Automaton *automaton, int src_switch, int dst_switch,
     unordered_set[pair[int, int]] &topo, int swtich_count
 ) except NULL
+cdef _print_path_graph(PathGraph *graph)
+cdef release_path_graph(PathGraph *graph)
