@@ -1,0 +1,22 @@
+# distutils: language=c++
+# cython: language_level = 3
+from .automaton cimport Automaton
+from libcpp.vector cimport vector
+from libcpp.unordered_set cimport unordered_set
+from libcpp.utility cimport pair
+
+cdef struct Node:
+    int guard
+    int require
+    int update
+    int next_hop
+    bint accepted
+    
+cdef struct PathGraph:
+    vector[Node] *node_list
+    vector[vector[int]] *edge_map
+    
+cdef PathGraph *create_path_graph(
+    Automaton *automaton, int src_state, int dst_switch, 
+    unordered_set[pair[int, int]] &topo, int swtich_count
+) except NULL

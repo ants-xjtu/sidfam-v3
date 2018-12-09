@@ -1,0 +1,10 @@
+# virtual environment
+env/
+
+# gurobi log
+gurobi.log
+
+# cython build file
+build/
+*.so
+*.cpp
