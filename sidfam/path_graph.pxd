@@ -15,10 +15,12 @@ cdef struct Node:
 cdef struct PathGraph:
     vector[Node] *node_list
     vector[vector[int]] *edge_map
+    vector[vector[int]] *path_list
 
 cdef PathGraph *create_path_graph(
     Automaton *automaton, int src_switch, int dst_switch,
-    unordered_set[pair[int, int]] &topo, int swtich_count
+    unordered_set[pair[int, int]] &topo, int switch_count
 ) except NULL
 cdef _print_path_graph(PathGraph *graph)
 cdef release_path_graph(PathGraph *graph)
+cdef search_path(PathGraph *graph, int max_depth)

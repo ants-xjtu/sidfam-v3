@@ -5,7 +5,7 @@ from libcpp.utility cimport pair
 from .automaton cimport Automaton as CAutomaton, \
     create_automaton, release_automaton, append_transition
 from .path_graph cimport PathGraph as CPathGraph, create_path_graph, \
-    _print_path_graph, release_path_graph
+    _print_path_graph, release_path_graph, search_path
 
 __all__ = [
     'Automaton',
@@ -51,6 +51,10 @@ cdef class PathGraph:
 
     def _print(self):
         _print_path_graph(self.c_path_graph)
+
+    def search_path(self, max_depth=8):
+        search_path(self.c_path_graph, max_depth)
+        print(f'{self} searched {self.c_path_graph.path_list.size()} path(s)')
 
 cdef extern from 'hash_pair.hpp':
     pass

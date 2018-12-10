@@ -8,6 +8,7 @@ gurobi.log
 build/
 *.so
 *.cpp
+*.html
 
 # python build file
 __pycache__/

@@ -18,3 +18,30 @@ class Kite(Topo):
             map[self.X['A']].add(self.X['C'])
             map[self.X['C']].add(self.X['A'])
         super().__init__(map)
+
+
+def from_dataset(dateset_path):
+    with open(dateset_path / 'topo.txt') as topo_file:
+        line_type = None
+        topo_map = {}
+        for line in topo_file:
+            if line.startswith('edge'):
+                line_type = 'edge'
+                continue
+            elif line.startswith('link'):
+                line_type = 'link'
+                continue
+
+            assert line_type is not None
+            if line_type == 'link':
+                items = line.split()
+                src_switch, dst_switch, bandwidth = \
+                    int(items[0]) + 1, int(items[1]) + 1, items[2]
+                if src_switch not in topo_map:
+                    topo_map[src_switch] = set()
+                topo_map[src_switch].add(dst_switch)
+                # if dst_switch in topo_map:
+                #     assert src_switch in topo_map[dst_switch]
+
+    topo = Topo(topo_map)
+    return topo, None, None, None
