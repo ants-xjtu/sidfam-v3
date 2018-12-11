@@ -1,29 +1,35 @@
 from . import Topo
+from .language import PacketClass
+from networkx import DiGraph, shortest_path_length
 
 
 class Kite(Topo):
     X = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
 
     def __init__(self, connect_BD=True, connect_AC=False):
-        map = {
-            self.X['A']: {self.X['B'], self.X['D']},
-            self.X['B']: {self.X['A'], self.X['C']},
-            self.X['C']: {self.X['B'], self.X['D']},
-            self.X['D']: {self.X['A'], self.X['C']},
-        }
+        graph = DiGraph()
+        graph.add_edge(self.X['A'], self.X['B'])
+        graph.add_edge(self.X['A'], self.X['D'])
+        graph.add_edge(self.X['B'], self.X['A'])
+        graph.add_edge(self.X['B'], self.X['C'])
+        graph.add_edge(self.X['C'], self.X['B'])
+        graph.add_edge(self.X['C'], self.X['D'])
+        graph.add_edge(self.X['D'], self.X['A'])
+        graph.add_edge(self.X['D'], self.X['C'])
         if connect_BD:
-            map[self.X['B']].add(self.X['D'])
-            map[self.X['D']].add(self.X['B'])
+            graph.add_edge(self.X['B'], self.X['D'])
+            graph.add_edge(self.X['B'], self.X['B'])
         if connect_AC:
-            map[self.X['A']].add(self.X['C'])
-            map[self.X['C']].add(self.X['A'])
-        super().__init__(map)
+            graph.add_edge(self.X['A'], self.X['C'])
+            graph.add_edge(self.X['C'], self.X['A'])
+        super().__init__(graph)
 
 
-def from_dataset(dateset_path):
+def _from_dataset_topo(dateset_path):
     with open(dateset_path / 'topo.txt') as topo_file:
         line_type = None
-        topo_map = {}
+        topo_map = DiGraph()
+        connected_switch = {}
         for line in topo_file:
             if line.startswith('edge'):
                 line_type = 'edge'
@@ -36,12 +42,35 @@ def from_dataset(dateset_path):
             if line_type == 'link':
                 items = line.split()
                 src_switch, dst_switch, bandwidth = \
-                    int(items[0]) + 1, int(items[1]) + 1, items[2]
-                if src_switch not in topo_map:
-                    topo_map[src_switch] = set()
-                topo_map[src_switch].add(dst_switch)
-                # if dst_switch in topo_map:
-                #     assert src_switch in topo_map[dst_switch]
+                    int(items[0]) + 1, int(items[1]) + 1, float(items[2])
+                topo_map.add_edge(src_switch, dst_switch)
+                topo_map.add_edge(dst_switch, src_switch)
+            if line_type == 'edge':
+                items = line.split()
+                switch, host_list = int(items[0]) + 1, items[1:]
+                for host in host_list:
+                    connected_switch[host] = switch
+    # topo = Topo(topo_map)
+    return topo_map, connected_switch
 
-    topo = Topo(topo_map)
-    return topo, None, None, None
+def from_dataset(dateset_path):
+    graph, connected_switch = _from_dataset_topo(dateset_path)
+
+    packet_class_list = []
+    shortest_path_length_map = {}
+    with open(dateset_path / 'demands.txt') as demands_file:
+        for line in demands_file:
+            items = line.split()
+            src_host, dst_host, bandwidth = items[0], items[1], float(items[2])
+            src_switch = connected_switch[src_host]
+            dst_switch = connected_switch[dst_host]
+            if src_switch == dst_switch:
+                continue
+            packet_class_list.append(
+                PacketClass(src_host, dst_host, src_switch, dst_switch))
+            shortest_path_length_map[src_switch, dst_switch] = \
+                shortest_path_length(
+                    graph, source=src_switch, target=dst_switch)
+
+    topo = Topo(graph, shortest_path_length_map)
+    return topo, None, packet_class_list, None

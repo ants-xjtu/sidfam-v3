@@ -1,15 +1,13 @@
 # distutils: language=c++
 # cython: language_level = 3
 from .automaton cimport Transition, Automaton
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from libc.stdlib cimport malloc, free
 from libcpp.vector cimport vector
 
 cdef Automaton *create_automaton() except NULL:
     cdef vector[Transition] *transition_list = new vector[Transition]()
-    if transition_list == NULL:
-        raise MemoryError()
-    cdef Automaton *automaton = <Automaton *> PyMem_Malloc(sizeof(Automaton))
-    if automaton == NULL:
+    cdef Automaton *automaton = <Automaton *> malloc(sizeof(Automaton))
+    if transition_list == NULL or automaton == NULL:
         raise MemoryError()
     automaton.state_count = 2  # 0: initial state, 1: accepted state
     automaton.transition_list = transition_list
@@ -21,7 +19,7 @@ cdef Automaton *create_automaton() except NULL:
 
 cdef release_automaton(Automaton *automaton):
     del automaton.transition_list
-    PyMem_Free(automaton)
+    free(automaton)
 
 cdef append_transition(
     Automaton *automaton,

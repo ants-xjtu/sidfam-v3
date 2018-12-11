@@ -2,7 +2,7 @@
 # cython: language_level = 3
 from .path_graph cimport PathGraph
 from .automaton cimport Automaton, Transition
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from libc.stdlib cimport malloc, free
 from libcpp.vector cimport vector
 from libcpp.unordered_set cimport unordered_set
 from libcpp.utility cimport pair
@@ -156,7 +156,7 @@ cdef PathGraph *create_path_graph(
     )
     # print('exist _build_edge_map')
 
-    cdef PathGraph *graph = <PathGraph *> PyMem_Malloc(sizeof(PathGraph))
+    cdef PathGraph *graph = <PathGraph *> malloc(sizeof(PathGraph))
     if graph == NULL:
         raise MemoryError()
     graph.node_list = node_list
@@ -186,11 +186,19 @@ cdef _print_node(PathGraph *graph, int index, prefix=''):
     )
 
 cdef release_path_graph(PathGraph *graph):
+    # print(
+    #     f'releasing node_list {<unsigned long long> graph.node_list:x} '
+    #     f'and edge_map {<unsigned long long> graph.edge_map:x}'
+    # )
     del graph.node_list
+    # print('released node_list')
     del graph.edge_map
+    # print('released edge_map')
     if graph.path_list != NULL:
         del graph.path_list
-    PyMem_Free(graph)
+    # print('freeing graph')
+    free(graph)
+    # print('finished')
 
 cdef search_path(PathGraph *graph, int max_depth):
     if graph.path_list != NULL:
