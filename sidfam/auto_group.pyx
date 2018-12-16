@@ -25,7 +25,7 @@ cdef release_auto_group(AutoGroup *group):
     #     automaton_set.insert(auto.automaton)
     # for automaton in automaton_set:
     #     release_automaton(automaton)
-    # del group.automaton_list
+    del group.automaton_list
 
     # print('start cleaning path_graph_list')
     cdef unordered_set[PathGraph *] path_graph_set
@@ -71,7 +71,7 @@ cdef int build_path_graph(
     cdef PathGraph *graph
     cdef GraphKey graph_id
     # print('before loop')
-    # cdef int i = 0
+    cdef int i = 0
     for auto in group.automaton_list[0]:
         # print(f'inside loop #{i}')
         # i += 1
@@ -87,6 +87,8 @@ cdef int build_path_graph(
             # graph = NULL
             graph_map[graph_id] = graph
         group.path_graph_list.push_back(graph)
+        print(f'built graph #{i} {<unsigned long long> graph:x}')
+        i += 1
     # print('exit loop')
     return 0
 
@@ -109,6 +111,7 @@ cdef collect_path(
         else:
             depth = max_depth
         try:
+            # print('start searching...')
             search_path(path_graph, depth)
         except Exception:
             raise Exception(

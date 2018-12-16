@@ -126,7 +126,7 @@ cdef class AutoGroup:
         pass
 
     def _build_path_graph(
-        self, Topo topo, max_depth=8, adaptive_depth_range=5
+        self, Topo topo, max_depth=12, adaptive_depth_range=5
     ):
         build_path_graph(self.c_auto_group, topo.c_topo, topo.c_switch_count)
         # print('after build')

@@ -73,4 +73,5 @@ def from_dataset(dateset_path):
                     graph, source=src_switch, target=dst_switch)
 
     topo = Topo(graph, shortest_path_length_map)
+    # topo = Topo(graph)
     return topo, None, packet_class_list, None
