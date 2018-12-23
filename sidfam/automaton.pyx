@@ -18,7 +18,7 @@ cdef Automaton *create_automaton() except NULL:
     return automaton
 
 cdef release_automaton(Automaton *automaton):
-    print('releasing automaton')
+    # print('releasing automaton')
     del automaton.transition_list
     free(automaton)
 

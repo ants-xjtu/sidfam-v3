@@ -8,7 +8,10 @@ Options.fast_fail = True
 Options.annotate = True
 
 extensions = [
-    Extension('*', ['sidfam/*.pyx'], extra_compile_args=['-std=c++14', '-Og'])
+    Extension(
+        '*', ['sidfam/*.pyx'],
+        extra_compile_args=['-std=c++14'],
+    )
 ]
 
 setup(ext_modules=cythonize(extensions))

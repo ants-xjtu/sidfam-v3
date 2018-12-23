@@ -1,6 +1,7 @@
 # distutils: language=c++
 # cython: language_level = 3
 from libcpp.unordered_set cimport unordered_set
+from libcpp.vector cimport vector
 from libcpp.utility cimport pair
 from .automaton cimport Automaton as CAutomaton, \
     create_automaton, release_automaton, append_transition
@@ -89,13 +90,29 @@ cdef class Topo:
 
 cdef class AutoGroup:
     cdef CAutoGroup *c_auto_group
-    cdef packet_class_map
+    cdef packet_class_list
+    cdef vector[vector[int]] c_guard_dep, c_update_dep
 
     def __cinit__(self):
         self.c_auto_group = create_auto_group()
 
-    def __init__(self):
-        self.packet_class_map = {}
+    def __init__(
+        self, packet_class_list, guard_list, require_list, update_list
+    ):
+        self.packet_class_list = packet_class_list
+        variable_map = {}
+        self.c_guard_dep.resize(len(guard_list))
+        self.c_update_dep.resize(len(update_list))
+        for i, guard in enumerate(guard_list):
+            for dep_var in guard.dep:
+                if dep_var not in variable_map:
+                    variable_map[dep_var] = len(variable_map)
+                self.c_guard_dep[i].push_back(variable_map[dep_var])
+        for i, update in enumerate(update_list):
+            for dep_var in update.dep:
+                if dep_var not in variable_map:
+                    variable_map[dep_var] = len(variable_map)
+                self.c_update_dep[i].push_back(variable_map[dep_var])
 
     def __dealloc__(self):
         release_auto_group(self.c_auto_group)
@@ -109,16 +126,15 @@ cdef class AutoGroup:
             packet_class, src_switch, dst_switch
         )
 
-    def __getitem__(self, packet_class):
+    def __getitem__(self, packet_class_constr):
         class Helper:
             def __iadd__(_self, automaton):
-                if packet_class not in self.packet_class_map:
-                    self.packet_class_map[packet_class] = \
-                        len(self.packet_class_map)
-                self._append_automaton(
-                    automaton, self.packet_class_map[packet_class],
-                    packet_class._src_switch, packet_class._dst_switch
-                )
+                for i, packet_class in enumerate(self.packet_class_list):
+                    if packet_class in packet_class_constr:
+                        src_switch, dst_switch = packet_class.endpoints()
+                        self._append_automaton(
+                            automaton, i, src_switch, dst_switch
+                        )
 
         return Helper()
 
@@ -149,7 +165,9 @@ cdef class Problem:
         # print('inside Problem __init__')
         self.auto_group = auto_group
         collect_path(
-            self.auto_group.c_auto_group, max_depth,
+            self.auto_group.c_auto_group,
+            self.auto_group.c_guard_dep, self.auto_group.c_update_dep,
+            max_depth,
             shortest_path_length_map, adaptive_depth_range
         )
         # print('exit')

@@ -26,6 +26,8 @@ cdef int build_path_graph(
     AutoGroup *group, unordered_set[pair[int, int]] *topo, int switch_count
 ) except -1
 cdef collect_path(
-    AutoGroup *group, int max_depth,
+    AutoGroup *group,
+    vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
+    int max_depth,
     shortest_path_length_map, int adaptive_depth_range
 )

@@ -31,16 +31,18 @@ cdef _build_node_list(
     #     f'automaton {<unsigned long long> automaton:x} '
     #     f'has state_count: {automaton.state_count}'
     # )
+    # print(automaton.state_count)
     state_node_list.resize(automaton.state_count)
     # print('resized state_node_list')
 
     cdef Node node
     cdef int i, j
-    cdef Transition *transition
-    cdef int transition_list_length = automaton.transition_list.size()
-    for i in range(transition_list_length):
+    # cdef Transition *transition
+    # cdef int transition_list_length = automaton.transition_list.size()
+    # for i in range(transition_list_length):
+    for transition in automaton.transition_list[0]:
         # print(f'transition #{i}')
-        transition = &automaton.transition_list.at(i)
+        # transition = &automaton.transition_list.at(i)
         if transition.src_state == 0:
             continue
         if transition.next_hop != 0:
@@ -52,7 +54,8 @@ cdef _build_node_list(
             node.dist = 20000
             # print(f'accepted: {node.accepted}')
             node_list.push_back(node)
-            node_origin.push_back(i)
+            # node_origin.push_back(i)
+            node_origin.push_back(transition.src_state)
             state_node_list[transition.dst_state].push_back(
                 node_list.size() - 1)
             if node.accepted:
@@ -68,7 +71,7 @@ cdef _build_node_list(
                 if beyond_dot[transition.src_state].count(j) == 0:
                     node.next_hop = j
                     node_list.push_back(node)
-                    node_origin.push_back(i)
+                    node_origin.push_back(transition.src_state)
                     state_node_list[transition.dst_state].push_back(
                         node_list.size() - 1)
     # print('finished _build_node_list')
@@ -91,13 +94,14 @@ cdef _build_edge_map(
     # print(f'resized edge_map to {node_list_length}')
 
     cdef vector[bint] visited_node
-    visited_node.resize(node_list.size(), False)
+    visited_node.resize(node_list_length, False)
 
     cdef Node *dst_node
     cdef int i, j
-    cdef Transition *origin_transition
+    # cdef Transition *origin_transition
     cdef int current_hop, next_hop
     # for i in range(1, node_list_length):
+    # print(f'node_list length: {node_list_length}')
     while node_queue.size() != 0:
         # print(node_queue.size())
         i = node_queue.front()
@@ -112,9 +116,12 @@ cdef _build_edge_map(
         # print('got dst_node')
         next_hop = dst_node.next_hop
         # print(f'visiting transition_list#{node_origin[i]}')
-        origin_transition = &automaton.transition_list.at(node_origin[i])
+        # origin_transition = &automaton.transition_list.at(node_origin[i])
         # print('before inner loop')
-        for j in state_node_list[origin_transition.src_state]:
+        for j in state_node_list[node_origin[i]]:
+            assert j < edge_map.size()
+            assert j < node_list.size()
+            assert j < visited_node.size()
             # print(j)
             current_hop = node_list.at(j).next_hop
             if topo.count(pair[int, int](current_hop, next_hop)) == 1 or \
@@ -122,6 +129,7 @@ cdef _build_edge_map(
                     next_hop == -2:
                 # print(f'adding edge {i} -> {j}')
                 edge_map.at(j).push_back(i)
+                # print(i, j)
                 if node_list.at(i).dist + 1 < node_list.at(j).dist:
                     # print(f'adjust {j} to {node_list.at(i).dist + 1}')
                     node_list.at(j).dist = node_list.at(i).dist + 1
@@ -143,14 +151,14 @@ cdef PathGraph *create_path_graph(
     cdef vector[int] node_origin
 
     cdef Node initial_node;
-    initial_node.guard = -1
-    initial_node.require = -1
-    initial_node.update = -1
+    initial_node.guard = 0
+    initial_node.require = 0
+    initial_node.update = 0
     initial_node.next_hop = src_switch
     initial_node.accepted = False
     initial_node.dist = 20000
     node_list.push_back(initial_node)
-    node_origin.push_back(-1)
+    node_origin.push_back(0)
 
     cdef deque[int] node_queue
 
@@ -217,10 +225,10 @@ cdef _print_node(PathGraph *graph, int index, prefix=''):
     )
 
 cdef release_path_graph(PathGraph *graph):
-    print(
-        f'releasing node_list {<unsigned long long> graph.node_list:x} '
-        f'and edge_map {<unsigned long long> graph.edge_map:x}'
-    )
+    # print(
+    #     f'releasing node_list {<unsigned long long> graph.node_list:x} '
+    #     f'and edge_map {<unsigned long long> graph.edge_map:x}'
+    # )
     del graph.node_list
     # print('released node_list')
     del graph.edge_map
@@ -245,9 +253,13 @@ cdef search_path(PathGraph *graph, int max_depth):
     # visited_node.insert(0)
     # visited_switch.insert(graph.node_list.at(0).next_hop)
     visited_node[0] = True
-    # visited_switch[graph.node_list.at(0).next_hop] = True
-    visited_switch[graph.node_list[0][0].next_hop] = True
+    assert graph.node_list.at(0).next_hop >= 0
+    assert graph.node_list.at(0).next_hop < visited_switch.size()
+    visited_switch[graph.node_list.at(0).next_hop] = True
+    # visited_switch[graph.node_list[0][0].next_hop] = True
     _search_path_impl(graph, 0, visited_node, visited_switch, 0, max_depth)
+    # for path in graph.path_list[0]:
+    #     print(', '.join([str(node) for node in path]))
 
     if graph.path_list.size() == 0:
         raise Exception('graph has no available path')
@@ -262,8 +274,8 @@ cdef void _search_path_impl(
     if current_depth == max_depth:
         return
     cdef vector[int] new_path
-    # if graph.node_list.at(current_node).accepted:
-    if graph.node_list[0][current_node].accepted:
+    if graph.node_list.at(current_node).accepted:
+    # if graph.node_list[0][current_node].accepted:
         new_path.resize(current_depth + 1)
         new_path[current_depth] = current_node
         graph.path_list.push_back(new_path)
@@ -274,10 +286,10 @@ cdef void _search_path_impl(
 
     cdef int old_path_list_len = graph.path_list.size()
     cdef int next_switch
-    # for next_node in graph.edge_map.at(current_node):
-    for next_node in graph.edge_map[0][current_node]:
-        # next_switch = graph.node_list.at(next_node).next_hop
-        next_switch = graph.node_list[0][next_node].next_hop
+    for next_node in graph.edge_map.at(current_node):
+    # for next_node in graph.edge_map[0][current_node]:
+        next_switch = graph.node_list.at(next_node).next_hop
+        # next_switch = graph.node_list[0][next_node].next_hop
         # if visited_node.count(next_node) != 0 or \
         #         visited_switch.count(next_switch) != 0:
         # if visited_node.at(next_node) or \
@@ -287,14 +299,17 @@ cdef void _search_path_impl(
             continue
 
         # IMPORTANT!!!
-        # if graph.node_list.at(next_node).dist + current_depth > max_depth:
-        if graph.node_list[0][next_node].dist + current_depth > max_depth:
+        if graph.node_list.at(next_node).dist + current_depth > max_depth:
+        # if graph.node_list[0][next_node].dist + current_depth > max_depth:
             continue
 
         # visited_node.insert(next_node)
         # visited_switch.insert(next_switch)
+        # assert next_node >= 0 and next_node < visited_node.size()
+        # assert next_switch >= 0 and next_switch < visited_switch.size()
         visited_node[next_node] = True
-        visited_switch[next_switch] = True
+        if next_switch > 0:
+            visited_switch[next_switch] = True
         _search_path_impl(
             graph, next_node, visited_node, visited_switch,
             current_depth + 1, max_depth
@@ -302,11 +317,14 @@ cdef void _search_path_impl(
         # visited_node.erase(next_node)
         # visited_switch.erase(next_switch)
         visited_node[next_node] = False
-        visited_switch[next_switch] = False
+        if next_switch > 0:
+            visited_switch[next_switch] = False
     cdef int i, path_list_len = graph.path_list.size()
     cdef vector[int] *path
     for i in range(old_path_list_len, path_list_len):
-        # path = &graph.path_list.at(i)
-        path = &graph.path_list[0][i]
+        assert i >= 0
+        assert i < graph.path_list.size()
+        path = &graph.path_list.at(i)
+        # path = &graph.path_list[0][i]
         path[0][current_depth] = current_node
         pass
