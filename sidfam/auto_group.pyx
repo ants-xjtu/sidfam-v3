@@ -93,7 +93,10 @@ cdef int build_path_graph(
     return 0
 
 cdef collect_path(
-    AutoGroup *group, int max_depth,
+    AutoGroup *group,
+    vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
+    int variable_count,
+    int max_depth,
     shortest_path_length_map, int adaptive_depth_range
 ):
     assert group.path_graph_list != NULL
@@ -112,7 +115,8 @@ cdef collect_path(
             depth = max_depth
         try:
             # print('start searching...')
-            search_path(path_graph, depth)
+            search_path(
+                path_graph, depth, guard_dep, update_dep, variable_count)
         except Exception:
             raise Exception(
                 f'{group.automaton_list.at(i).src_switch} -> '

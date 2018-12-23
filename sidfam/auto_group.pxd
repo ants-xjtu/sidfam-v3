@@ -28,6 +28,7 @@ cdef int build_path_graph(
 cdef collect_path(
     AutoGroup *group,
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
+    int variable_count,
     int max_depth,
     shortest_path_length_map, int adaptive_depth_range
 )

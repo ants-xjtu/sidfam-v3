@@ -56,9 +56,9 @@ cdef class PathGraph:
     def _print(self):
         _print_path_graph(self.c_path_graph)
 
-    def search_path(self, max_depth=8):
-        search_path(self.c_path_graph, max_depth)
-        print(f'{self} searched {self.c_path_graph.path_list.size()} path(s)')
+    # def search_path(self, max_depth=8):
+    #     search_path(self.c_path_graph, max_depth)
+    #     print(f'{self} searched {self.c_path_graph.path_list.size()} path(s)')
 
 cdef extern from 'hash_pair.hpp':
     pass
@@ -92,6 +92,7 @@ cdef class AutoGroup:
     cdef CAutoGroup *c_auto_group
     cdef packet_class_list
     cdef vector[vector[int]] c_guard_dep, c_update_dep
+    cdef int c_variable_count
 
     def __cinit__(self):
         self.c_auto_group = create_auto_group()
@@ -113,6 +114,7 @@ cdef class AutoGroup:
                 if dep_var not in variable_map:
                     variable_map[dep_var] = len(variable_map)
                 self.c_update_dep[i].push_back(variable_map[dep_var])
+        self.c_variable_count = len(variable_map)
 
     def __dealloc__(self):
         release_auto_group(self.c_auto_group)
@@ -167,6 +169,7 @@ cdef class Problem:
         collect_path(
             self.auto_group.c_auto_group,
             self.auto_group.c_guard_dep, self.auto_group.c_update_dep,
+            self.auto_group.c_variable_count,
             max_depth,
             shortest_path_length_map, adaptive_depth_range
         )

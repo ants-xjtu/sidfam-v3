@@ -17,6 +17,7 @@ cdef struct PathGraph:
     vector[Node] *node_list
     vector[vector[int]] *edge_map
     vector[vector[int]] *path_list
+    vector[vector[int]] *path_dep
     int switch_count
 
 cdef PathGraph *create_path_graph(
@@ -25,4 +26,8 @@ cdef PathGraph *create_path_graph(
 ) except NULL
 cdef _print_path_graph(PathGraph *graph)
 cdef release_path_graph(PathGraph *graph)
-cdef search_path(PathGraph *graph, int max_depth)
+cdef search_path(
+    PathGraph *graph, int max_depth,
+    vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
+    int variable_count
+)

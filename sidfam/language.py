@@ -78,7 +78,7 @@ class CombinedDep(DepElement):
         self.dep = set()
         if isinstance(v1, DepElement):
             self.dep |= v1.dep
-        elif ininstance(v2, DepElement):
+        elif isinstance(v2, DepElement):
             self.dep |= v2.dep
 
 
@@ -100,3 +100,6 @@ class Variable(Expr):
 
 class GuardUpdate(CombinedDep):
     pass
+
+
+no_guard = no_update = GuardUpdate(None, None)

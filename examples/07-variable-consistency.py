@@ -1,7 +1,7 @@
 #
 from sidfam import Automaton, AutoGroup
 from sidfam.gallery import from_dataset
-from sidfam.language import any_ip, Variable
+from sidfam.language import any_ip, Variable, no_guard, no_update
 from pathlib import Path
 from sys import argv
 
@@ -18,9 +18,9 @@ topo, _bandwidth_resource, packet_class_list, _bandwidth_require = \
 print(f'actual packet class count: {len(packet_class_list)}')
 
 var_x = Variable()
-guard_list = [var_x < 1000]
+guard_list = [no_guard, var_x < 1000]
 require_list = []
-update_list = [var_x << var_x + 1]
+update_list = [no_update, var_x << var_x + 1]
 
 group = AutoGroup(packet_class_list, guard_list, require_list, update_list)
 group[any_ip] += auto
