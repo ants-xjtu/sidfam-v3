@@ -52,7 +52,7 @@ cdef append_automaton(
     auto.dst_switch = dst_switch
     group.automaton_list.push_back(auto)
 
-cdef extern from "hash_pair.hpp":
+cdef extern from "hash.hpp":
     pass
 
 ctypedef pair[pair[int, int], Automaton *] GraphKey
@@ -128,3 +128,22 @@ cdef collect_path(
             f'{path_graph.path_list.size()} path(s) (max_depth: {depth})'
         )
         i += 1
+
+
+cdef unordered_map[vector[int], vector[vector[int]]] *collect_model(
+    AutoGroup *group
+):
+    cdef unordered_map[vector[int], vector[vector[int]]] *path_map = \
+        new unordered_map[vector[int], vector[vector[int]]]()
+    cdef int i = 0, j, path_graph_count = group.path_graph_list.size()
+    for graph in group.path_graph_list[0]:
+        assert graph.path_list != NULL
+        j = 0
+        for path_dep in graph.path_dep[0]:
+            if path_map.count(path_dep) == 0:
+                path_map[0][path_dep] = vector[vector[int]]()
+                path_map[0][path_dep].resize(path_graph_count)
+            path_map[0][path_dep][i].push_back(j)
+            j += 1
+        i += 1
+    return path_map

@@ -103,3 +103,29 @@ class GuardUpdate(CombinedDep):
 
 
 no_guard = no_update = GuardUpdate(None, None)
+
+
+class Resource:
+    def __init__(self, shared):
+        self.shared = shared
+        self.map = None
+
+    def __mul__(self, other):
+        return Require({self: other})
+
+
+class Require:
+    def __init__(self, res_map):
+        self.res_map = res_map
+
+    def __add__(self, other):
+        res_map = dict(self.res_map)
+        for res, req in other.res_map.items():
+            if res not in res_map:
+                res_map[res] = req
+            else:
+                res_map[res] += req
+        return Require(res_map)
+
+
+no_require = Require({})

@@ -30,6 +30,7 @@ def _from_dataset_topo(dateset_path):
         line_type = None
         topo_map = DiGraph()
         connected_switch = {}
+        bandwidth_res = {}
         for line in topo_file:
             if line.startswith('edge'):
                 line_type = 'edge'
@@ -45,16 +46,22 @@ def _from_dataset_topo(dateset_path):
                     int(items[0]) + 1, int(items[1]) + 1, float(items[2])
                 topo_map.add_edge(src_switch, dst_switch)
                 topo_map.add_edge(dst_switch, src_switch)
+                if (src_switch, dst_switch) not in bandwidth_res:
+                    bandwidth_res[src_switch, dst_switch] = \
+                        bandwidth_res[dst_switch, src_switch] = bandwidth
+                else:
+                    assert bandwidth_res[src_switch, dst_switch] == \
+                        bandwidth_res[dst_switch, src_switch] == bandwidth
             if line_type == 'edge':
                 items = line.split()
                 switch, host_list = int(items[0]) + 1, items[1:]
                 for host in host_list:
                     connected_switch[host] = switch
     # topo = Topo(topo_map)
-    return topo_map, connected_switch
+    return topo_map, connected_switch, bandwidth_res
 
 def from_dataset(dateset_path):
-    graph, connected_switch = _from_dataset_topo(dateset_path)
+    graph, connected_switch, bandwidth_res = _from_dataset_topo(dateset_path)
 
     packet_class_list = []
     shortest_path_length_map = {}
@@ -74,4 +81,4 @@ def from_dataset(dateset_path):
 
     topo = Topo(graph, shortest_path_length_map)
     # topo = Topo(graph)
-    return topo, None, packet_class_list, None
+    return topo, bandwidth_res, packet_class_list, None

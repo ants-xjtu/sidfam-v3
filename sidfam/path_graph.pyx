@@ -76,7 +76,7 @@ cdef _build_node_list(
                         node_list.size() - 1)
     # print('finished _build_node_list')
 
-cdef extern from 'hash_pair.hpp':
+cdef extern from 'hash.hpp':
     pass
 
 cdef _build_edge_map(
@@ -266,10 +266,10 @@ cdef search_path(
         graph, 0, visited_node, visited_switch, 0, max_depth,
         guard_dep, update_dep, variable_count
     )
-    for path in graph.path_list[0]:
-        print(', '.join([str(node) for node in path]))
-    for path_dep in graph.path_dep[0]:
-        print(', '.join([str(hop) for hop in path_dep]))
+    # for path in graph.path_list[0]:
+    #     print(', '.join([str(node) for node in path]))
+    # for path_dep in graph.path_dep[0]:
+    #     print(', '.join([str(hop) for hop in path_dep]))
 
     if graph.path_list.size() == 0:
         raise Exception('graph has no available path')

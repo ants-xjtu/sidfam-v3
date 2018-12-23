@@ -4,6 +4,7 @@ from .automaton cimport Automaton
 from .path_graph cimport PathGraph
 from libcpp.vector cimport vector
 from libcpp.unordered_set cimport unordered_set
+from libcpp.unordered_map cimport unordered_map
 from libcpp.utility cimport pair
 
 cdef struct GroupedAuto:
@@ -32,3 +33,5 @@ cdef collect_path(
     int max_depth,
     shortest_path_length_map, int adaptive_depth_range
 )
+cdef unordered_map[vector[int], vector[vector[int]]] *collect_model(
+    AutoGroup *group)
