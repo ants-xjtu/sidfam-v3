@@ -110,20 +110,20 @@ cdef create_model(
         i += 1
 
     print('add distinguish constraints...')
-    cdef unordered_map[
+    cdef pair[pair[int, int], unordered_map[
         pair[int, int],  # update & next hop
         vector[pair[int, int]],  # path graph & path
-    ] key_dist
-    cdef vector[pair[int, int]] action_dist
+    ]] key_dist
+    cdef pair[pair[int, int], vector[pair[int, int]]] action_dist
     cdef pair[int, int] var_index
     for switch_dist in distinguish:
-        for _k, key_dist in switch_dist:
+        for key_dist in switch_dist:
             # print(key_dist)
             choice_var_list = []
-            for _k2, action_dist in key_dist:
+            for action_dist in key_dist.second:
                 collected_var = []
                 # print(action_dist)
-                for var_index in action_dist:
+                for var_index in action_dist.second:
                     collected_var.append(
                         model_var[var_index.first][var_index.second])
                 choice_var = model.addVar(vtype=GRB.BINARY)
@@ -141,27 +141,29 @@ cdef create_model(
             float  # require
         ]]
     ] res_map
-    cdef vector[unordered_map[  # packet class
+    cdef pair[pair[int, int], vector[unordered_map[  # packet class
         pair[int, int],  # path graph & path
         float  # require
-    ]] req_map
+    ]]] req_map
     cdef unordered_map[  # packet class
         pair[int, int],  # path graph & path
         float  # require
     ] packet_class_req
+    cdef pair[pair[int, int], float] need_pair
     i = 0
     for res_map in require:
-        for src_dst, req_map in res_map:
-            amount = resource_list[i][src_dst]
+        for req_map in res_map:
+            amount = resource_list[i][req_map.first]
             if shared_resource[i]:
                 packet_class_reqiure_list = []
-                for packet_class_req in req_map:
+                for packet_class_req in req_map.second:
                     max_req = model.addVar(vtype=GRB.CONTINUOUS)
                     # print(var_index)
-                    for var_index, need in packet_class_req:
+                    for need_pair in packet_class_req:
+                        var_index = need_pair.first
                         model.addConstr(
-                            model_var[var_index.first][var_index.second] * need \
-                                <= max_req
+                            model_var[var_index.first][var_index.second] * \
+                                need_pair.second <= max_req
                         )
                     packet_class_reqiure_list.append(max_req)
                 model.addConstr(sum(packet_class_reqiure_list) <= amount)
