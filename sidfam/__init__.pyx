@@ -13,7 +13,7 @@ from .auto_group cimport AutoGroup as CAutoGroup, create_auto_group, \
     collect_model
 from .model cimport create_model
 
-from gurobipy import GRB
+from gurobipy import GRB, Model, read
 
 __all__ = [
     'Automaton',
@@ -219,15 +219,21 @@ cdef class SplitedProblem:
         for _k, model_path in self.problem.c_split_map[0]:
             print(f'creating model #{i}')
             group = self.auto_group.c_auto_group
-            model, model_var = create_model(
+            model_str, model_var = create_model(
                 model_path, group, self.problem.topo.c_switch_count,
                 require_list, res_map, shared_res,
                 len(self.auto_group.packet_class_list)
             )
-            if model is None:
+            if model_str == b'':
                 print('skipping impossible model')
                 i += 1
                 continue
+            print('create model file')
+            with open('problem.lp', 'wb') as model_file:
+                model_file.write(model_str)
+            print('create model')
+            model = read('problem.lp')
+            print('solve model')
             model.optimize()
             if model.status == GRB.Status.OPTIMAL:
                 print(f'model #{i} found solution')

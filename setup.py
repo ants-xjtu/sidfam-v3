@@ -10,7 +10,9 @@ Options.annotate = True
 extensions = [
     Extension(
         '*', ['sidfam/*.pyx'],
-        extra_compile_args=['-std=c++14'],
+        extra_compile_args=[
+            '-std=c++14',
+        ],
     )
 ]
 
