@@ -6,6 +6,15 @@ from sidfam.language import any_ip, Variable, no_guard, no_update, \
 from pathlib import Path
 from sys import argv
 
+from time import time
+
+now = time()
+
+def print_time():
+    global now
+    print(time() - now)
+    now = time()
+
 auto = Automaton()
 auto._append_transition(0, 1, 0, 0, 0, 0)
 auto._append_transition(1, 1, 0, 1, 0, 0)
@@ -13,6 +22,8 @@ auto._append_transition(1, 2, 1, 1, 1, 0)
 auto._append_transition(1, 3, 1, 0, 1, -1)
 auto._append_transition(2, 2, 0, 1, 0, 0)
 auto._append_transition(2, 3, 0, 0, 0, -1)
+
+print_time()
 
 topo, bandwidth_resource, packet_class_list, _bandwidth_require = \
     from_dataset(Path(argv[1]))
@@ -28,9 +39,18 @@ update_list = [no_update, var_x << var_x + 1]
 group = AutoGroup(packet_class_list, guard_list, require_list, update_list)
 group[any_ip] += auto
 
+print_time()
+
 # problem = group @ topo
 problem = group._build_path_graph(topo, adaptive_depth_range=5)
+
+print_time()
+
 splited = problem.split()
+
+print_time()
 
 bandwidth.map = bandwidth_resource
 splited.solve()
+
+print_time()
