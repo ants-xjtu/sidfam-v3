@@ -50,6 +50,7 @@ def _from_dataset_topo(dateset_path):
                     bandwidth_res[src_switch, dst_switch] = \
                         bandwidth_res[dst_switch, src_switch] = bandwidth
                 else:
+                    # print(src_switch, dst_switch)
                     assert bandwidth_res[src_switch, dst_switch] == \
                         bandwidth_res[dst_switch, src_switch] == bandwidth
             if line_type == 'edge':

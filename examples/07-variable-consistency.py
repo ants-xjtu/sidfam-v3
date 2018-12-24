@@ -22,13 +22,14 @@ print(f'actual packet class count: {len(packet_class_list)}')
 var_x = Variable()
 bandwidth = Resource(shared=True)
 guard_list = [no_guard, var_x < 1000]
-require_list = [no_require, bandwidth * 1]
+require_list = [no_require, bandwidth * 0.01]
 update_list = [no_update, var_x << var_x + 1]
 
 group = AutoGroup(packet_class_list, guard_list, require_list, update_list)
 group[any_ip] += auto
 
-problem = group @ topo
+# problem = group @ topo
+problem = group._build_path_graph(topo, adaptive_depth_range=5)
 splited = problem.split()
 
 bandwidth.map = bandwidth_resource
