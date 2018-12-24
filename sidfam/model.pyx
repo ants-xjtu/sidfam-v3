@@ -238,12 +238,12 @@ cdef pair[string, vector[vector[string]]] create_model(
         decl_section.append(b' ')
     decl_section.append(b'\n')
 
-    decl_section.append(b'Integer\n  ')
-    for i in range(int_var_count):
-        decl_section.append(b'y')
-        decl_section.append(bytes(str(i).encode()))
-        decl_section.append(b' ')
-    decl_section.append(b'\n')
+    # decl_section.append(b'Integer\n  ')
+    # for i in range(int_var_count):
+    #     decl_section.append(b'y')
+    #     decl_section.append(bytes(str(i).encode()))
+    #     decl_section.append(b' ')
+    # decl_section.append(b'\n')
 
     return pair[string, vector[vector[string]]](
         constr_file + decl_section, model_var)
