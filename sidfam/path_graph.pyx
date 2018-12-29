@@ -239,13 +239,13 @@ cdef release_path_graph(PathGraph *graph):
     free(graph)
     # print('finished')
 
-cdef search_path(
+cdef int search_path(
     PathGraph *graph, int max_depth,
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
     int variable_count
-):
+) nogil except -1:
     if graph.path_list != NULL:
-        return
+        return 0
     graph.path_list = new vector[vector[int]]()
     graph.path_dep = new vector[vector[int]]()
     if graph.path_list == NULL or graph.path_dep == NULL:
@@ -274,17 +274,19 @@ cdef search_path(
     if graph.path_list.size() == 0:
         raise Exception('graph has no available path')
 
-cdef void _search_path_impl(
+    return 0
+
+cdef int _search_path_impl(
     PathGraph *graph, int current_node,
     # unordered_set[int] &visited_node, unordered_set[int] &visited_switch,
     vector[bint] &visited_node, vector[bint] &visited_switch,
     int current_depth, int max_depth,
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
     int variable_count
-):
+) nogil except -1:
     # print(f'at node {current_node}, depth {current_depth}')
     if current_depth == max_depth:
-        return
+        return 0
     cdef vector[int] new_path, new_path_dep
     if graph.node_list.at(current_node).accepted:
     # if graph.node_list[0][current_node].accepted:
@@ -297,7 +299,7 @@ cdef void _search_path_impl(
         # graph.path_list.push_back(vector[int]())
         # graph.path_list.back().resize(current_depth + 1)
         # graph.path_list.back()[current_depth] = current_node
-        return
+        return 0
 
     cdef int old_path_list_len = graph.path_list.size()
     cdef int next_switch
@@ -354,10 +356,14 @@ cdef void _search_path_impl(
         for dep_var in guard_dep.at(guard):
             if path_dep[0][dep_var] != 0 and \
                     path_dep[0][dep_var] != current_hop:
-                assert False
+                # assert False
+                pass
             path_dep[0][dep_var] = current_hop
         for dep_var in update_dep.at(update):
             if path_dep[0][dep_var] != 0 and \
                     path_dep[0][dep_var] != current_hop:
-                assert False
+                # assert False
+                pass
             path_dep[0][dep_var] = current_hop
+
+    return 0

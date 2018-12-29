@@ -26,8 +26,8 @@ cdef PathGraph *create_path_graph(
 ) except NULL
 cdef _print_path_graph(PathGraph *graph)
 cdef release_path_graph(PathGraph *graph)
-cdef search_path(
+cdef int search_path(
     PathGraph *graph, int max_depth,
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
     int variable_count
-)
+) nogil except -1

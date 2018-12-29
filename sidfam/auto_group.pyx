@@ -10,6 +10,9 @@ from libcpp.unordered_set cimport unordered_set
 from libcpp.unordered_map cimport unordered_map
 from libcpp.utility cimport pair
 
+from cython.parallel cimport prange
+from libc.stdio cimport printf
+
 cdef AutoGroup *create_auto_group() except NULL:
     cdef AutoGroup *group = <AutoGroup *> malloc(sizeof(AutoGroup))
     cdef vector[GroupedAuto] *automaton_list = new vector[GroupedAuto]()
@@ -87,7 +90,7 @@ cdef int build_path_graph(
             # graph = NULL
             graph_map[graph_id] = graph
         group.path_graph_list.push_back(graph)
-        print(f'built graph #{i} {<unsigned long long> graph:x}')
+        # print(f'built graph #{i} {<unsigned long long> graph:x}')
         i += 1
     # print('exit loop')
     return 0
@@ -100,50 +103,120 @@ cdef collect_path(
     shortest_path_length_map, int adaptive_depth_range
 ):
     assert group.path_graph_list != NULL
-    cdef int i = 0
-    cdef int depth
+    cdef int i
+    # cdef int depth
     cdef int src_switch, dst_switch
-    for path_graph in group.path_graph_list[0]:
+    cdef int graph_count = group.path_graph_list.size()
+    cdef vector[int] err
+    err.resize(graph_count, 0)
+
+    cdef vector[int] depth_list
+    depth_list.resize(graph_count)
+    for i in range(graph_count):
         src_switch = group.automaton_list.at(i).src_switch
         dst_switch = group.automaton_list.at(i).dst_switch
         if shortest_path_length_map is not None and \
                 (src_switch, dst_switch) in shortest_path_length_map:
-            depth = \
+            depth_list[i] = \
                 shortest_path_length_map[src_switch, dst_switch] + \
                 adaptive_depth_range
         else:
-            depth = max_depth
-        try:
-            # print('start searching...')
-            search_path(
-                path_graph, depth, guard_dep, update_dep, variable_count)
-        except Exception:
-            raise Exception(
-                f'{group.automaton_list.at(i).src_switch} -> '
-                f'{group.automaton_list.at(i).dst_switch} '
-                f'max_depth: {depth}'
-            )
-        print(
-            f'PathGraph {<unsigned long long> path_graph:x} searched '
-            f'{path_graph.path_list.size()} path(s) (max_depth: {depth})'
-        )
-        i += 1
+            depth_list[i] = max_depth
 
+    # for path_graph in group.path_graph_list[0]:
+    # for i in range(graph_count):
+    for i in prange(graph_count, nogil=True):
+        # try:
+        #     # print('start searching...')
+        #     search_path(
+        #         path_graph, depth, guard_dep, update_dep, variable_count)
+        # except Exception:
+        #     raise Exception(
+        #         f'{group.automaton_list.at(i).src_switch} -> '
+        #         f'{group.automaton_list.at(i).dst_switch} '
+        #         f'max_depth: {depth}'
+        #     )
+
+        err[i] = search_path_wrapper(
+            group.path_graph_list.at(i),
+            depth_list[i], guard_dep, update_dep, variable_count
+        )
+        if err[i] != 0:
+            printf(
+                'error: %d -> %d max_depth: %d\n',
+                group.automaton_list.at(i).src_switch,
+                group.automaton_list.at(i).dst_switch,
+                depth_list[i]
+            )
+            # err = True
+            break
+
+        # print(
+        #     f'PathGraph {<unsigned long long> path_graph:x} searched '
+        #     f'{path_graph.path_list.size()} path(s) (max_depth: {depth})'
+        # )
+    for i in range(graph_count):
+        if err[i] != 0:
+            raise Exception('cannot search path')
+
+
+cdef int search_path_wrapper(
+    PathGraph *graph, int max_depth,
+    vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
+    int variable_count
+) nogil:
+    return search_path(graph, max_depth, guard_dep, update_dep, variable_count)
 
 cdef unordered_map[vector[int], vector[vector[int]]] *collect_model(
     AutoGroup *group
 ):
-    cdef unordered_map[vector[int], vector[vector[int]]] *path_map = \
-        new unordered_map[vector[int], vector[vector[int]]]()
-    cdef int i = 0, j, path_graph_count = group.path_graph_list.size()
-    for graph in group.path_graph_list[0]:
-        assert graph.path_list != NULL
-        j = 0
+    cdef int i, path_graph_count = group.path_graph_list.size()
+    cdef vector[unordered_map[vector[int], vector[vector[int]]]] path_map_list
+    path_map_list.resize(path_graph_count)
+    cdef vector[int] path_dep
+    cdef vector[int] j
+    j.resize(path_graph_count, 0)
+    # for i in range(path_graph_count):
+    for i in prange(path_graph_count, nogil=True):
+        # printf('start graph %d\n', i)
+        graph = group.path_graph_list.at(i)
+    # for graph in group.path_graph_list[0]:
+        # assert graph.path_list != NULL
+        j[i] = 0
         for path_dep in graph.path_dep[0]:
-            if path_map.count(path_dep) == 0:
-                path_map[0][path_dep] = vector[vector[int]]()
-                path_map[0][path_dep].resize(path_graph_count)
-            path_map[0][path_dep][i].push_back(j)
-            j += 1
-        i += 1
-    return path_map
+            if path_map_list[i].count(path_dep) == 0:
+                path_map_list[i][path_dep] = vector[vector[int]]()
+                path_map_list[i][path_dep].resize(path_graph_count)
+            path_map_list[i][path_dep][i].push_back(j[i])
+            j[i] += 1
+        # printf('finish graph %d\n', i)
+        # i += 1
+    merge_split_map_list(path_map_list)
+    return new unordered_map[vector[int], vector[vector[int]]](path_map_list[0])
+
+cdef merge_split_map_list(vector[unordered_map[vector[int], vector[vector[int]]]] &split_map_list):
+    cdef int map_list_length = split_map_list.size()
+    cdef int i = 1, j
+    while i < map_list_length:
+        printf('start merging at level %d\n', i)
+        for j in prange(0, map_list_length - i, i * 2, nogil=True):
+            merge_two(split_map_list, j, j + i)
+        i *= 2
+
+cdef void merge_two(
+    vector[unordered_map[vector[int], vector[vector[int]]]] &splited_map_list,
+    int a, int b
+) nogil:
+    # printf("mering: %d %d\n", a, b)
+    cdef int graph_count = splited_map_list.size()
+    cdef int i
+    for dep_path in splited_map_list[b]:
+        if splited_map_list[a].count(dep_path.first) == 0:
+            splited_map_list[a][dep_path.first] = splited_map_list[b][dep_path.first]
+        else:
+            for i in range(graph_count):
+                splited_map_list[a][dep_path.first][i].insert(
+                    splited_map_list[a][dep_path.first][i].end(),
+                    splited_map_list[b][dep_path.first][i].begin(),
+                    splited_map_list[b][dep_path.first][i].end(),
+                )

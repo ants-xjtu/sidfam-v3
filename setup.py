@@ -12,6 +12,12 @@ extensions = [
         '*', ['sidfam/*.pyx'],
         extra_compile_args=[
             '-std=c++14',
+            '-fopenmp',
+        ],
+        extra_link_args=[
+            '-fopenmp',
+            # '-L/usr/local/opt/libomp/lib',
+            # '-I/usr/local/opt/libomp/include'
         ],
     )
 ]
