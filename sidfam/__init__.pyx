@@ -103,6 +103,8 @@ cdef class AutoGroup:
     cdef int c_variable_count
     cdef require_list
 
+    cdef automaton_list  # prevent Python Automaton objects to be destoryed
+
     def __cinit__(self):
         self.c_auto_group = create_auto_group()
 
@@ -126,6 +128,8 @@ cdef class AutoGroup:
         self.c_variable_count = len(variable_map)
         self.require_list = require_list
 
+        self.automaton_list = []
+
     def __dealloc__(self):
         release_auto_group(self.c_auto_group)
 
@@ -137,16 +141,19 @@ cdef class AutoGroup:
             self.c_auto_group, automaton.c_automaton,
             packet_class, src_switch, dst_switch
         )
+        self.automaton_list.append(automaton)
 
     def __getitem__(self, packet_class_constr):
         class Helper:
             def __iadd__(_self, automaton):
                 for i, packet_class in enumerate(self.packet_class_list):
                     if packet_class in packet_class_constr:
+                        # print(packet_class._src_ip, packet_class._dst_ip)
                         src_switch, dst_switch = packet_class.endpoints()
                         self._append_automaton(
                             automaton, i, src_switch, dst_switch
                         )
+                # print('')
 
         return Helper()
 

@@ -34,6 +34,7 @@ class SrcIPConstr(IPConstr):
         self._rhs = rhs
 
     def __contains__(self, packet_class):
+        # print(packet_class._src_ip, self._rhs)
         return self._op(packet_class._src_ip, self._rhs)
 
 

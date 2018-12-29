@@ -48,12 +48,15 @@ cdef append_automaton(
     AutoGroup *group, Automaton *automaton,
     int packet_class, int src_switch, int dst_switch
 ):
+    # print(automaton.transition_list.size())
     cdef GroupedAuto auto
     auto.automaton = automaton
     auto.packet_class = packet_class
     auto.src_switch = src_switch
     auto.dst_switch = dst_switch
     group.automaton_list.push_back(auto)
+    # print(group.automaton_list.size())
+    # print(group.automaton_list.at(0).automaton.transition_list.size())
 
 cdef extern from "hash.hpp":
     pass
@@ -63,6 +66,7 @@ ctypedef pair[pair[int, int], Automaton *] GraphKey
 cdef int build_path_graph(
     AutoGroup *group, unordered_set[pair[int, int]] *topo, int switch_count
 ) except -1:
+    # print(group.automaton_list.at(0).automaton.transition_list.size())
     group.path_graph_list = new vector[PathGraph *]()
     if group.path_graph_list == NULL:
         raise MemoryError()
@@ -75,24 +79,48 @@ cdef int build_path_graph(
     cdef GraphKey graph_id
     # print('before loop')
     cdef int i = 0
+    cdef vector[GraphKey] graph_key_list
     for auto in group.automaton_list[0]:
         # print(f'inside loop #{i}')
         # i += 1
         automaton = auto.automaton
+        # print(automaton.transition_list.size())
         src_switch = auto.src_switch
         dst_switch = auto.dst_switch
         graph_id = GraphKey(pair[int, int](src_switch, dst_switch), automaton)
         if graph_map.count(graph_id) == 1:
-            graph = graph_map[graph_id]
+            # graph = graph_map[graph_id]
+            pass
         else:
-            graph = create_path_graph(
-                automaton, src_switch, dst_switch, topo[0], switch_count)
+            # print(automaton.transition_list.size())
+            # graph = create_path_graph(
+            #     automaton, src_switch, dst_switch, topo[0], switch_count)
             # graph = NULL
-            graph_map[graph_id] = graph
-        group.path_graph_list.push_back(graph)
+            # graph_map[graph_id] = graph
+            graph_map[graph_id] = NULL
+            graph_key_list.push_back(graph_id)
+        # group.path_graph_list.push_back(graph)
         # print(f'built graph #{i} {<unsigned long long> graph:x}')
         i += 1
+
+    cdef int nodup_graph_count = graph_key_list.size()
+    print('start creating path graph')
+    for i in prange(nodup_graph_count, nogil=True):
+        graph_map[graph_key_list[i]] = create_path_graph(
+            graph_key_list[i].second,  # auto
+            graph_key_list[i].first.first,  # src_switch
+            graph_key_list[i].first.second,  # dst_switch
+            topo[0], switch_count)
     # print('exit loop')
+
+    for auto in group.automaton_list[0]:
+        automaton = auto.automaton
+        # print(automaton.transition_list.size())
+        src_switch = auto.src_switch
+        dst_switch = auto.dst_switch
+        graph_id = GraphKey(pair[int, int](src_switch, dst_switch), automaton)
+        group.path_graph_list.push_back(graph_map[graph_id])
+
     return 0
 
 cdef collect_path(
@@ -137,6 +165,7 @@ cdef collect_path(
         #         f'max_depth: {depth}'
         #     )
 
+        # printf('start search #%d\n', i)
         err[i] = search_path_wrapper(
             group.path_graph_list.at(i),
             depth_list[i], guard_dep, update_dep, variable_count

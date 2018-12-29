@@ -8,16 +8,19 @@ from libcpp.unordered_set cimport unordered_set
 from libcpp.utility cimport pair
 from libcpp.deque cimport deque
 
-cdef _build_beyond_dot(
+from libc.stdio cimport printf
+from libc.stdlib cimport abort
+
+cdef void _build_beyond_dot(
     Automaton *automaton,
     vector[unordered_set[int]] &beyond_dot
-):
+) nogil:
     beyond_dot.resize(automaton.state_count)
     for transition in automaton.transition_list[0]:
         if transition.next_hop > 0:  # not dot(0), e(-1) or d(-2)
             beyond_dot[transition.src_state].insert(transition.next_hop)
 
-cdef _build_node_list(
+cdef void _build_node_list(
     Automaton *automaton,
     vector[Node] *node_list,
     vector[vector[int]] &state_node_list,
@@ -25,13 +28,15 @@ cdef _build_node_list(
     vector[unordered_set[int]] &beyond_dot,
     int switch_count,
     deque[int] &accepted_node_list
-):
+) nogil:
     # print('start _build_node_list')
     # print(
     #     f'automaton {<unsigned long long> automaton:x} '
     #     f'has state_count: {automaton.state_count}'
     # )
     # print(automaton.state_count)
+    # print(automaton.state_count)
+    # assert automaton.state_count < 10
     state_node_list.resize(automaton.state_count)
     # print('resized state_node_list')
 
@@ -79,14 +84,14 @@ cdef _build_node_list(
 cdef extern from 'hash.hpp':
     pass
 
-cdef _build_edge_map(
+cdef void _build_edge_map(
     Automaton *automaton, vector[vector[int]] *edge_map,
     vector[Node] *node_list, vector[int] &node_origin,
     vector[vector[int]] &state_node_list,
     unordered_set[pair[int, int]] &topo,
     int dst_switch,
     deque[int] &node_queue,
-):
+) nogil:
     # print('start _build_edge_map')
 
     cdef int node_list_length = node_list.size()
@@ -140,13 +145,14 @@ cdef _build_edge_map(
 cdef PathGraph *create_path_graph(
     Automaton *automaton, int src_switch, int dst_switch,
     unordered_set[pair[int, int]] &topo, int switch_count
-) except NULL:
+) nogil except NULL:
     cdef vector[unordered_set[int]] beyond_dot
     _build_beyond_dot(automaton, beyond_dot)
 
     cdef vector[Node] *node_list = new vector[Node]()
     if node_list == NULL:
-        raise MemoryError()
+        # raise MemoryError()
+        abort()
     cdef vector[vector[int]] state_node_list
     cdef vector[int] node_origin
 
@@ -178,7 +184,7 @@ cdef PathGraph *create_path_graph(
                     beyond_dot.at(0).count(src_switch) == 0):
             initial_state = transition.dst_state
             break
-    assert initial_state > 0
+    # assert initial_state > 0
     # print(f'initial_state: {initial_state}')
     state_node_list.at(initial_state).push_back(0)
 
@@ -186,17 +192,21 @@ cdef PathGraph *create_path_graph(
     cdef vector[vector[int]] *edge_map = new vector[vector[int]]()
     # print(f'created edge_map at {<unsigned long long> edge_map:x}')
     if edge_map == NULL:
-        raise MemoryError()
+        # raise MemoryError()
+        abort()
     _build_edge_map(
         automaton, edge_map, node_list, node_origin, state_node_list,
         topo, dst_switch, node_queue
     )
-    assert node_list.at(0).dist < 20000
+    # assert node_list.at(0).dist < 20000
+    if not node_list.at(0).dist < 20000:
+        abort()
     # print('exist _build_edge_map')
 
     cdef PathGraph *graph = <PathGraph *> malloc(sizeof(PathGraph))
     if graph == NULL:
-        raise MemoryError()
+        # raise MemoryError()
+        abort()
     graph.node_list = node_list
     graph.edge_map = edge_map
 
@@ -244,6 +254,7 @@ cdef int search_path(
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
     int variable_count
 ) nogil except -1:
+    # printf('start searching\n')
     if graph.path_list != NULL:
         return 0
     graph.path_list = new vector[vector[int]]()

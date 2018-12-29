@@ -66,6 +66,7 @@ def from_dataset(dateset_path):
 
     packet_class_list = []
     shortest_path_length_map = {}
+    bandwidth_req = {}
     with open(dateset_path / 'demands.txt') as demands_file:
         for line in demands_file:
             items = line.split()
@@ -79,7 +80,8 @@ def from_dataset(dateset_path):
             shortest_path_length_map[src_switch, dst_switch] = \
                 shortest_path_length(
                     graph, source=src_switch, target=dst_switch)
+            bandwidth_req[src_host, dst_host] = bandwidth
 
     topo = Topo(graph, shortest_path_length_map)
     # topo = Topo(graph)
-    return topo, bandwidth_res, packet_class_list, None
+    return topo, bandwidth_res, packet_class_list, bandwidth_req

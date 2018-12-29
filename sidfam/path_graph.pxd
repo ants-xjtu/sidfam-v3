@@ -23,7 +23,7 @@ cdef struct PathGraph:
 cdef PathGraph *create_path_graph(
     Automaton *automaton, int src_switch, int dst_switch,
     unordered_set[pair[int, int]] &topo, int switch_count
-) except NULL
+) nogil except NULL
 cdef _print_path_graph(PathGraph *graph)
 cdef release_path_graph(PathGraph *graph)
 cdef int search_path(

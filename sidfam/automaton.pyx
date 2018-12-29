@@ -40,6 +40,7 @@ cdef append_transition(
     transition.update = update
     transition.next_hop = next_hop
     automaton.transition_list.push_back(transition)
+    # print('push back transition')
 
     if src_state >= automaton.state_count:
         automaton.state_count = src_state + 1
