@@ -12,3 +12,7 @@ build/
 
 # python build file
 __pycache__/
+
+# problem data, topo picture
+*.lp
+*.png

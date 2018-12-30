@@ -9,10 +9,10 @@ from sys import argv, exit
 from time import time
 from random import sample, randint
 
-from networkx import shortest_path_length, draw
+from networkx import shortest_path_length, draw, has_path
 from matplotlib import pyplot as plt
 
-FIREWALL_DEGREE_MIN = 10
+FIREWALL_DEGREE_MIN = 30
 DIST_TO_FIREWALL_MAX = 7
 DIST_TO_EACH_OTHER_MIN = 0
 SELECT_RATE = 0.1
@@ -27,24 +27,33 @@ draw(topo_graph, with_labels=True)
 plt.savefig('topo.png')
 
 topo_nodes = topo_graph.nodes()
-center = sample(packet_class_list, 1)[0]._src_switch
 firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
-# firewalls = sample([n for n in topo_nodes if shortest_path_length(topo_graph, n, center) < 2], 2)
-# firewalls = [2, 3]
 print(f'chosen firewalls: {firewalls}')
-# topo.no_adaptive()
+centers = [
+    n for n in topo_nodes
+    if has_path(topo_graph, n, firewalls[0]) and
+        (shortest_path_length(topo_graph, n, firewalls[0]) < 3 or
+        shortest_path_length(topo_graph, n, firewalls[1]) < 3)
+]
 
-hh_map = Variable()
-hh_counter = Variable()
+orphan = Variable()
+susp_client = Variable()
+blacklist = Variable()
 bandwidth = Resource(shared=True)
 guard_list = [
     no_guard,
-    (hh_map < 1) & (hh_counter < 1000),
-    (hh_map < 1) & (hh_counter == 1000),
-    (hh_map == 1),
+    susp_client < 1000,
+    susp_client == 1000,
+    orphan == 1,
+    orphan == 0
 ]
 require_list = [no_require]
-update_list = [no_update, hh_counter << hh_counter + 1, hh_map << 1]
+update_list = [
+    no_update,
+    (orphan << 1) & (susp_client << susp_client + 1) & (blacklist << 1),
+    (orphan << 1) & (susp_client << susp_client + 1),
+    (orphan << 0) & (susp_client << susp_client - 1)
+]
 
 def simple_routing(bw_req):
     req = len(require_list)
@@ -56,7 +65,7 @@ def simple_routing(bw_req):
     return auto
 
 
-def fw_hh(firewall_a, firewall_b, bw_req, g, u):
+def ff_gu(firewall_a, firewall_b, bw_req, g, u):
     req = len(require_list)
     require_list.append(bandwidth * bw_req)
     auto = Automaton()
@@ -106,14 +115,16 @@ for packet_class in packet_class_list:
     d0 = shortest_path_length(topo_graph, dst_switch, firewalls[0])
     d1 = shortest_path_length(topo_graph, dst_switch, firewalls[1])
     sd = shortest_path_length(topo_graph, src_switch, dst_switch)
-    if ((
-        s0 <= DIST_TO_FIREWALL_MAX and d1 <= DIST_TO_FIREWALL_MAX
-    ) or (
-        s1 <= DIST_TO_FIREWALL_MAX and d0 <= DIST_TO_FIREWALL_MAX
-    )) and sd > DIST_TO_EACH_OTHER_MIN and (
-        s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2
-    ):
+    # if ((
+    #     s0 <= DIST_TO_FIREWALL_MAX and d1 <= DIST_TO_FIREWALL_MAX
+    # ) or (
+    #     s1 <= DIST_TO_FIREWALL_MAX and d0 <= DIST_TO_FIREWALL_MAX
+    # )) and sd > DIST_TO_EACH_OTHER_MIN and (
+    #     s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2
+    # ):
     # if src_switch == center or dst_switch == center:
+    if (src_switch in centers or dst_switch in centers) and \
+            (s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2):
         selected_packet_class.append(packet_class)
 
 print(f'selected count: {len(selected_packet_class)}')
@@ -131,19 +142,26 @@ for i, packet_class in enumerate(packet_class_list):
     # req = 0.01
 
     if packet_class in selected_packet_class:
-        group._append_automaton(
-            fw_hh(firewalls[0], firewalls[1], req, 1, 1),
-            i, src_switch, dst_switch
-        )
-        group._append_automaton(
-            fw_hh(firewalls[0], firewalls[1], req, 2, 2),
-            i, src_switch, dst_switch
-        )
-        group._append_automaton(
-            fw_hh(firewalls[0], firewalls[1], req, 3, 0),
-            i, src_switch, dst_switch
-        )
-        # pass
+        if dst_switch in centers:
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 1, 1),
+                i, src_switch, dst_switch
+            )
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 2, 2),
+                i, src_switch, dst_switch
+            )
+        elif src_switch in centers:
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 3, 3),
+                i, src_switch, dst_switch
+            )
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 4, 0),
+                i, src_switch, dst_switch
+            )
+        else:
+            assert False
     else:
         group._append_automaton(
             simple_routing(req), i, src_switch, dst_switch

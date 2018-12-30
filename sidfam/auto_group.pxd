@@ -33,5 +33,8 @@ cdef collect_path(
     int max_depth,
     shortest_path_length_map, int adaptive_depth_range
 )
-cdef unordered_map[vector[int], vector[vector[int]]] *collect_model(
+cdef unordered_map[vector[int], unordered_map[int, vector[int]]] *collect_model(
     AutoGroup *group)
+cdef unordered_map[vector[int], vector[vector[int]]] *extend_splited(
+    unordered_map[vector[int], unordered_map[int, vector[int]]] *splited_map, int graph_count
+)

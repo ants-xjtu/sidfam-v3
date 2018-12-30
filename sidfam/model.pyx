@@ -1,6 +1,6 @@
 # distutils: language=c++
 # cython: language_level = 3
-from gurobipy import Model, GRB
+from gurobipy import  Model as GRBModel, GRB
 from libcpp.vector cimport vector
 from libcpp.utility cimport pair
 from libcpp.unordered_map cimport unordered_map
@@ -8,17 +8,23 @@ from libcpp.string cimport string
 from .auto_group cimport AutoGroup
 from .path_graph cimport PathGraph
 
+from .gallery import print_time
+
+from random import sample
+
+CUT_OFF = 10
+
 cdef extern from 'hash.hpp':
     pass
 
-cdef pair[string, vector[vector[string]]] create_model(
+cdef Model create_model(
     vector[vector[int]] &model_path, AutoGroup *group, int switch_count,
     vector[vector[float]] &require_list,
     vector[unordered_map[pair[int, int], float]] &resource_list,
     vector[bint] &shared_resource,
     int packet_class_count
 ):
-    model = Model()
+    model = GRBModel()
     # model_var = [None for _i in range(model_path.size())]
 
     cdef vector[unordered_map[  # switch
@@ -48,8 +54,6 @@ cdef pair[string, vector[vector[string]]] create_model(
     cdef PathGraph *graph
     cdef vector[int] *path
     cdef int path_length
-    print(f'model_path size: {model_path.size()}')
-    print('scanning...')
 
     cdef int var_count = 0
     cdef vector[vector[string]] model_var
@@ -58,18 +62,31 @@ cdef pair[string, vector[vector[string]]] create_model(
     cdef string constr_file
     constr_file.append(b'Subject To\n')
 
-    i = 0
-    for graph_path in model_path:
+    cdef int graph_count = model_path.size()
+    cdef vector[vector[int]] cut_model_path
+    cut_model_path.resize(graph_count)
+
+    cdef Model c_model
+    c_model.problem = b''
+    # for graph_path in model_path:
+    for i in range(graph_count):
         constr_file.append(b'  ')
-        if graph_path.size() == 0:
-            return pair[string, vector[vector[string]]](
-                b'', vector[vector[string]]())
+        if model_path[i].size() == 0:
+            return c_model
         # model_var[i] = [
         #     model.addVar(vtype=GRB.BINARY)
         #     for _i in range(graph_path.size())
         # ]
 
         var_row_length = model_path[i].size()
+
+        if var_row_length > CUT_OFF:
+            for v in sample(range(var_row_length), CUT_OFF):
+                cut_model_path[i].push_back(model_path[i][v])
+            var_row_length = CUT_OFF
+        else:
+            cut_model_path[i] = model_path[i]
+
         model_var[i].resize(var_row_length)
         for v in range(var_row_length):
             model_var[i][v] = ('x' + str(var_count)).encode()
@@ -84,7 +101,8 @@ cdef pair[string, vector[vector[string]]] create_model(
         packet_class = group.automaton_list.at(i).packet_class
         graph = group.path_graph_list.at(i)
         k = 0
-        for path_index in graph_path:
+        # for path_index in graph_path:
+        for path_index in cut_model_path[i]:
             path = &graph.path_list.at(path_index)
             path_length = path.size()
             for j in range(1, path_length):
@@ -131,7 +149,7 @@ cdef pair[string, vector[vector[string]]] create_model(
 
             k += 1
         i += 1
-
+    print_time('found a possible problem: ')
     # print(constr_file)
 
     print('add distinguish constraints...')
@@ -171,7 +189,7 @@ cdef pair[string, vector[vector[string]]] create_model(
                     constr_file.append(c_var)
                     constr_file.append(b' + ')
                 constr_file.append(b'z <= 1\n')
-    #
+
     print('add require constraints...')
     cdef float amount
     cdef unordered_map[  # resource
@@ -230,6 +248,14 @@ cdef pair[string, vector[vector[string]]] create_model(
 
     constr_file.append(b'  z = 0\n')
 
+    # for graph_var in model_var:
+    #     if graph_var.size() > 10:
+    #         dropped_var_index = sample(range(graph_var.size()), graph_var.size() - 10)
+    #         for var_i in dropped_var_index:
+    #             constr_file.append(b'  ')
+    #             constr_file.append(graph_var[var_i])
+    #             constr_file.append(b' = 0\n')
+
     cdef string decl_section
     decl_section.append(b'Binary\n  z ')
     for i in range(var_count):
@@ -245,5 +271,7 @@ cdef pair[string, vector[vector[string]]] create_model(
     #     decl_section.append(b' ')
     # decl_section.append(b'\n')
 
-    return pair[string, vector[vector[string]]](
-        constr_file + decl_section, model_var)
+    c_model.problem = constr_file + decl_section
+    c_model.path = cut_model_path
+    c_model.var = model_var
+    return c_model

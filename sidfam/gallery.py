@@ -2,6 +2,8 @@ from . import Topo
 from .language import PacketClass
 from networkx import DiGraph, shortest_path_length
 
+from time import time
+
 
 class Kite(Topo):
     X = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
@@ -52,7 +54,8 @@ def _from_dataset_topo(dateset_path):
                 else:
                     # print(src_switch, dst_switch)
                     assert bandwidth_res[src_switch, dst_switch] == \
-                        bandwidth_res[dst_switch, src_switch] == bandwidth
+                        bandwidth_res[dst_switch, src_switch] == bandwidth, \
+                            f'{src_switch} -> {dst_switch} line: {line}'
             if line_type == 'edge':
                 items = line.split()
                 switch, host_list = int(items[0]) + 1, items[1:]
@@ -85,3 +88,11 @@ def from_dataset(dateset_path):
     topo = Topo(graph, shortest_path_length_map)
     # topo = Topo(graph)
     return topo, bandwidth_res, packet_class_list, bandwidth_req
+
+
+now = time()
+
+def print_time(prefix=''):
+    global now
+    print(prefix + str(time() - now))
+    now = time()

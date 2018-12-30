@@ -200,6 +200,7 @@ cdef PathGraph *create_path_graph(
     )
     # assert node_list.at(0).dist < 20000
     if not node_list.at(0).dist < 20000:
+        printf('unreachable initial node: %d -> %d\n', src_switch, dst_switch)
         abort()
     # print('exist _build_edge_map')
 
@@ -253,7 +254,7 @@ cdef int search_path(
     PathGraph *graph, int max_depth,
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
     int variable_count
-) nogil except -1:
+) nogil:
     # printf('start searching\n')
     if graph.path_list != NULL:
         return 0
@@ -283,7 +284,9 @@ cdef int search_path(
     #     print(', '.join([str(hop) for hop in path_dep]))
 
     if graph.path_list.size() == 0:
-        raise Exception('graph has no available path')
+        # raise Exception('graph has no available path')
+        printf('no path\n')
+        return -1
 
     return 0
 

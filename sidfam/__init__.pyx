@@ -10,8 +10,10 @@ from .path_graph cimport PathGraph as CPathGraph, create_path_graph, \
     _print_path_graph, release_path_graph, search_path
 from .auto_group cimport AutoGroup as CAutoGroup, create_auto_group, \
     release_auto_group, append_automaton, build_path_graph, collect_path, \
-    collect_model
+    collect_model, extend_splited
 from .model cimport create_model
+
+from .gallery import print_time
 
 from gurobipy import GRB, Model, read
 
@@ -164,6 +166,7 @@ cdef class AutoGroup:
         self, Topo topo, max_depth=14, adaptive_depth_range=5
     ):
         build_path_graph(self.c_auto_group, topo.c_topo, topo.c_switch_count)
+        print_time('finish building path graph: ')
         # print('after build')
         return Problem(
             self, max_depth,
@@ -200,7 +203,12 @@ cdef class Problem:
 
     def split(self):
         print('split problem')
-        self.c_split_map = collect_model(self.auto_group.c_auto_group)
+        cdef unordered_map[vector[int], unordered_map[int, vector[int]]]* raw_split_map
+        raw_split_map = collect_model(self.auto_group.c_auto_group)
+        print('extending problems')
+        self.c_split_map = extend_splited(
+            raw_split_map, self.auto_group.c_auto_group.path_graph_list.size())
+        del raw_split_map
         print('done')
         return SplitedProblem(self.auto_group, self)
 
@@ -226,25 +234,29 @@ cdef class SplitedProblem:
         for _k, model_path in self.problem.c_split_map[0]:
             print(f'creating model #{i}')
             group = self.auto_group.c_auto_group
-            model_str, model_var = create_model(
+            c_model = create_model(
                 model_path, group, self.problem.topo.c_switch_count,
                 require_list, res_map, shared_res,
                 len(self.auto_group.packet_class_list)
             )
-            if model_str == b'':
+            if c_model.problem == b'':
                 print('skipping impossible model')
                 i += 1
                 continue
             print('create model file')
             with open('problem.lp', 'wb') as model_file:
-                model_file.write(model_str)
+                model_file.write(c_model.problem)
             print('create model')
             model = read('problem.lp')
+            # model.params.threads = 1
+            model.params.heuristics = 1
+            model.params.method = 3
             print('solve model')
             model.optimize()
             if model.status == GRB.Status.OPTIMAL:
                 print(f'model #{i} found solution')
-                break
+                # return Rule(self, model, c_model.var, c_model.path)
+                return
             i += 1
 
     def _preprocess_req(self):
@@ -274,3 +286,48 @@ cdef class SplitedProblem:
                 require_list.back()[res_index_map[res]] = need
 
         return require_list, res_map, shared_res
+
+
+class Rule:
+    def __init__(self, SplitedProblem splited, model, var_map, path_map):
+        self.packet_class_list = splited.auto_group.packet_class_list
+        print('generate rules')
+        self.switch_action_map = {}
+        for i, graph_var in enumerate(var_map):
+            packet_class = splited.auto_group.c_auto_group.automaton_list.at(i).packet_class
+            graph = splited.auto_group.c_auto_group.path_graph_list.at(i)
+            graph_var_val = [model.getVarByName(v) for v in graph_var]
+            assert sum(graph_var_val) == 1
+            selected_path_index = graph_var_val.index(1)
+            selected_path = graph.path_list.at(selected_path_index)
+            for j, node in enumerate(selected_path):
+                if j == 0:
+                    continue
+                pre_node = selected_path[j - 1]
+                current_switch = graph.node_list.at(pre_node).next_hop
+                real_node = graph.node_list.at(node)
+                guard = real_node.guard
+                update = real_node.update
+                # require = real_node.require
+                next_switch = real_node.next_hop
+
+                if current_switch not in self.switch_action_map:
+                    self.switch_action_map[current_switch] = {}
+                    # self.switch_action_map[current_switch] = []
+                assert (packet_class, guard) not in self.switch_action_map[current_switch] or \
+                    self.switch_action_map[current_switch][packet_class, guard] == (update, next_switch)
+                self.switch_action_map[current_switch][packet_class, guard] = (update, next_switch)
+                # self.switch_action_map[current_switch].append(
+                #     ((packet_class, guard), (update, next_switch)))
+
+    def __str__(self):
+        desc = ''
+        for switch, switch_rule in self.switch_action_map.items():
+            desc += f'SWITCH {switch}\n'
+            for pc_g, u_nh in switch_rule.items():
+            # for pc_g, u_nh in switch_rule:
+                pc = self.packet_class_list[pc_g[0]]
+                desc += f'  PACKET CLASS {pc_g[0]}(FROM {pc._src_ip} TO {pc._dst_ip}) GUARD {pc_g[1]} ->\n'
+                desc += f'    UPDATE {u_nh[0]} NEXT HOP {u_nh[1]}\n'
+            desc += '\n'
+        return desc

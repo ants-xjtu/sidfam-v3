@@ -30,4 +30,4 @@ cdef int search_path(
     PathGraph *graph, int max_depth,
     vector[vector[int]] &guard_dep, vector[vector[int]] &update_dep,
     int variable_count
-) nogil except -1
+) nogil

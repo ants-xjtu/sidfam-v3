@@ -6,7 +6,12 @@ from libcpp.utility cimport pair
 from libcpp.string cimport string
 from .auto_group cimport AutoGroup
 
-cdef pair[string, vector[vector[string]]] create_model(
+cdef struct Model:
+    string problem
+    vector[vector[int]] path
+    vector[vector[string]] var
+
+cdef Model create_model(
     vector[vector[int]] &model_path, AutoGroup *group, int switch_count,
     vector[vector[float]] &require_list,
     vector[unordered_map[pair[int, int], float]] &resource_list,
