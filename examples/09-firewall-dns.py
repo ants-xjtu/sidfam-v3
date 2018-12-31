@@ -12,7 +12,7 @@ from random import sample, randint, choice
 from networkx import shortest_path_length, draw, has_path
 from matplotlib import pyplot as plt
 
-FIREWALL_DEGREE_MIN = 14
+FIREWALL_DEGREE_MIN = 30
 DIST_TO_FIREWALL_MAX = 7
 DIST_TO_EACH_OTHER_MIN = 0
 SELECT_RATE = 0.1

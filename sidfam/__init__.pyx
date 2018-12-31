@@ -244,10 +244,10 @@ cdef class SplitedProblem:
                 i += 1
                 continue
             print('create model file')
-            with open('problem.lp', 'wb') as model_file:
+            with open('/dev/shm/problem.lp', 'wb') as model_file:
                 model_file.write(c_model.problem)
             print('create model')
-            model = read('problem.lp')
+            model = read('/dev/shm/problem.lp')
             # model.params.threads = 1
             model.params.heuristics = 1
             model.params.method = 3
