@@ -17,13 +17,14 @@ DIST_TO_FIREWALL_MAX = 7
 DIST_TO_EACH_OTHER_MIN = 0
 SELECT_RATE = 0.1
 ADAPTIVE = 5
+AUTO_COMPLEX = int(argv[3]) if len(argv) > 3 else 1
 
 print_time('program start: ')
 
 topo, bandwidth_resource, packet_class_list, bandwidth_require = \
     from_dataset(Path(argv[1]))
 
-demand_count = int(argv[2]) if len(argv) > 2 else len(packet_class_list)
+demand_count = int(argv[2]) if len(argv) > 2 and int(argv[2]) > 0 else len(packet_class_list)
 extra_packet_class_list = []
 if len(packet_class_list) > demand_count:
     packet_class_list = sample(packet_class_list, demand_count)
@@ -76,42 +77,53 @@ def simple_routing(bw_req):
     return auto
 
 
-def ff_gu(firewall_a, firewall_b, bw_req, g, u):
+def ff_gu_single(firewall_a, firewall_b, bw_req, g, u, auto=None, zero=0):
     req = len(require_list)
     require_list.append(bandwidth * bw_req)
-    auto = Automaton()
+    if auto is None:
+        auto = Automaton()
 
     # 1: reach A, 2: reach B, 3: neither
-    auto._append_transition(0, 1, 0, 0, 0, firewall_a)
-    auto._append_transition(0, 2, 0, 0, 0, firewall_b)
-    auto._append_transition(0, 3, 0, 0, 0, 0)
-    auto._append_transition(3, 1, 0, req, 0, firewall_a)
-    auto._append_transition(3, 2, 0, req, 0, firewall_b)
+    if zero == 0:
+        auto._append_transition(0, 1, 0, 0, 0, firewall_a)
+        auto._append_transition(0, 2, 0, 0, 0, firewall_b)
+        auto._append_transition(0, 3, 0, 0, 0, 0)
+        auto._append_transition(3, 1, 0, req, 0, firewall_a)
+        auto._append_transition(3, 2, 0, req, 0, firewall_b)
     # 4: reach A & reach B
-    auto._append_transition(1, 4, 0, req, 0, firewall_b)
-    auto._append_transition(2, 4, 0, req, 0, firewall_a)
+    auto._append_transition(1, zero + 4, 0, req, 0, firewall_b)
+    auto._append_transition(2, zero + 4, 0, req, 0, firewall_a)
     # 5: reach A & guard update, 6: reach B & guard update
-    auto._append_transition(1, 5, g, req, u, 0)
-    auto._append_transition(2, 6, g, req, u, 0)
-    auto._append_transition(3, 5, g, req, u, firewall_a)
-    auto._append_transition(3, 6, g, req, u, firewall_b)
+    auto._append_transition(1, zero + 5, g, req, u, 0)
+    auto._append_transition(2, zero + 6, g, req, u, 0)
+    auto._append_transition(3, zero + 5, g, req, u, firewall_a)
+    auto._append_transition(3, zero + 6, g, req, u, firewall_b)
     # 7: guard update
-    auto._append_transition(3, 7, g, req, u, 0)
-    auto._append_transition(7, 5, 0, req, 0, firewall_a)
-    auto._append_transition(7, 6, 0, req, 0, firewall_b)
+    auto._append_transition(3, zero + 7, g, req, u, 0)
+    auto._append_transition(zero + 7, zero + 5, 0, req, 0, firewall_a)
+    auto._append_transition(zero + 7, zero + 6, 0, req, 0, firewall_b)
     # 8: reach A & reach B & guard update
-    auto._append_transition(5, 8, 0, req, 0, firewall_b)
-    auto._append_transition(6, 8, 0, req, 0, firewall_a)
-    auto._append_transition(4, 8, g, req, u, 0)
-    auto._append_transition(1, 8, g, req, u, firewall_b)
-    auto._append_transition(2, 8, g, req, u, firewall_a)
+    auto._append_transition(zero + 5, zero + 8, 0, req, 0, firewall_b)
+    auto._append_transition(zero + 6, zero + 8, 0, req, 0, firewall_a)
+    auto._append_transition(zero + 4, zero + 8, g, req, u, 0)
+    auto._append_transition(1, zero + 8, g, req, u, firewall_b)
+    auto._append_transition(2, zero + 8, g, req, u, firewall_a)
     # 9: accept
-    auto._append_transition(8, 9, 0, 0, 0, -1)
-    auto._append_transition(4, 9, g, 0, u, -1)
+    auto._append_transition(zero + 8, zero + 9, 0, 0, 0, -1)
+    auto._append_transition(zero + 4, zero + 9, g, 0, u, -1)
 
-    for i in range(1, 9):
-        auto._append_transition(i, i, 0, req, 0, 0)
+    if zero == 0:
+        for i in range(1, 4):
+            auto._append_transition(i, i, 0, req, 0, 0)
+    for i in range(4, 9):
+        auto._append_transition(zero + i, zero + i, 0, req, 0, 0)
 
+    return auto
+
+def ff_gu(firewall_a, firewall_b, bw_req, g, u):
+    auto = ff_gu_single(firewall_a, firewall_b, bw_req, g, u)
+    for i in range(1, AUTO_COMPLEX):
+        auto = ff_gu_single(firewall_a, firewall_b, bw_req, g, u, auto, 6 * i)
     return auto
 
 

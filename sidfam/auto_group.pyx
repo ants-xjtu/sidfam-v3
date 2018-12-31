@@ -254,14 +254,20 @@ cdef void merge_two(
         # printf('exchange1\n')
         merge_two(splited_map_list, b, a, max)
         splited_map_list[a].swap(splited_map_list[b])
+        return
     # printf("mering: %d %d\n", a, b)
     cdef int graph_count = splited_map_list.size()
-    cdef int i
+    cdef int i, t
     for dep_path in splited_map_list[b]:
         if splited_map_list[a].count(dep_path.first) == 0:
             splited_map_list[a][dep_path.first] = unordered_map[int, vector[int]]()
             splited_map_list[a][dep_path.first].swap(splited_map_list[b][dep_path.first])
         else:
+            t = -1
+            if splited_map_list[a][dep_path.first].size() < splited_map_list[b][dep_path.first].size():
+                t = a
+                a = b
+                b = t
             for i in range(graph_count):
                 if not splited_map_list[b][dep_path.first].count(i):
                     continue
@@ -282,7 +288,11 @@ cdef void merge_two(
                         splited_map_list[a][dep_path.first][i].swap(
                             splited_map_list[b][dep_path.first][i])
                 else:
-                    splited_map_list[a][dep_path.first][i] = splited_map_list[b][dep_path.first][i]
+                    splited_map_list[a][dep_path.first][i] = vector[int]()
+                    splited_map_list[a][dep_path.first][i].swap(splited_map_list[b][dep_path.first][i])
+                    # splited_map_list[a][dep_path.first][i] = splited_map_list[b][dep_path.first][i]
+            if t >= 0:
+                splited_map_list[a][dep_path.first].swap(splited_map_list[b][dep_path.first])
 
 cdef unordered_map[vector[int], vector[vector[int]]] *extend_splited(
     unordered_map[vector[int], unordered_map[int, vector[int]]] *saved_splited_map,

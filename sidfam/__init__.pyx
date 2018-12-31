@@ -226,7 +226,7 @@ cdef class SplitedProblem:
         self.problem = problem
         assert self.problem.c_split_map != NULL
 
-    def solve(self):
+    def solve(self, save=False):
         require_list, res_map, shared_res = self._preprocess_req()
 
         cdef int i = 0
@@ -255,8 +255,10 @@ cdef class SplitedProblem:
             model.optimize()
             if model.status == GRB.Status.OPTIMAL:
                 print(f'model #{i} found solution')
-                # return Rule(self, model, c_model.var, c_model.path)
-                return
+                if save:
+                    return Rule(self, model, c_model.var, c_model.path)
+                else:
+                    return
             i += 1
 
     def _preprocess_req(self):
