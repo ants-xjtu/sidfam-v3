@@ -2,25 +2,36 @@
 from sidfam import Automaton, AutoGroup
 from sidfam.gallery import from_dataset, _from_dataset_topo, print_time
 from sidfam.language import any_ip, Variable, no_guard, no_update, \
-    no_require, Resource, src_ip, dst_ip
+    no_require, Resource, src_ip, dst_ip, PacketClass
 from pathlib import Path
 from sys import argv, exit
 
 from time import time
-from random import sample, randint
+from random import sample, randint, choice
 
 from networkx import shortest_path_length, draw, has_path
 from matplotlib import pyplot as plt
 
-FIREWALL_DEGREE_MIN = 30
+FIREWALL_DEGREE_MIN = 14
 DIST_TO_FIREWALL_MAX = 7
 DIST_TO_EACH_OTHER_MIN = 0
 SELECT_RATE = 0.1
+ADAPTIVE = 5
 
 print_time('program start: ')
 
 topo, bandwidth_resource, packet_class_list, bandwidth_require = \
     from_dataset(Path(argv[1]))
+
+demand_count = int(argv[2]) if len(argv) > 2 else len(packet_class_list)
+extra_packet_class_list = []
+if len(packet_class_list) > demand_count:
+    packet_class_list = sample(packet_class_list, demand_count)
+elif len(packet_class_list) < demand_count:
+    for i in range(demand_count - len(packet_class_list)):
+        pc = choice(packet_class_list)
+        extra_packet_class_list.append(PacketClass(pc._src_ip, pc._dst_ip, pc._src_switch, pc._dst_switch))
+
 print(f'actual packet class count: {len(packet_class_list)}')
 topo_graph, _c, _r = _from_dataset_topo(Path(argv[1]))
 draw(topo_graph, with_labels=True)
@@ -107,7 +118,7 @@ def ff_gu(firewall_a, firewall_b, bw_req, g, u):
 group = AutoGroup(packet_class_list, guard_list, require_list, update_list)
 selected_packet_class = []
 ff = shortest_path_length(topo_graph, firewalls[0], firewalls[1])
-for packet_class in packet_class_list:
+for packet_class in packet_class_list + extra_packet_class_list:
     src_host, dst_host = packet_class._src_ip, packet_class._dst_ip
     src_switch, dst_switch = packet_class.endpoints()
     s0 = shortest_path_length(topo_graph, src_switch, firewalls[0])
@@ -128,16 +139,19 @@ for packet_class in packet_class_list:
         selected_packet_class.append(packet_class)
 
 print(f'selected count: {len(selected_packet_class)}')
-if len(selected_packet_class) < len(packet_class_list) * SELECT_RATE:
+if len(selected_packet_class) < demand_count * SELECT_RATE:
     print('selected packet classes is too few, aborting')
     exit()
-selected_packet_class = sample(selected_packet_class, int(len(packet_class_list) * SELECT_RATE))
-for i, packet_class in enumerate(packet_class_list):
+selected_packet_class = sample(selected_packet_class, int(demand_count * SELECT_RATE))
+for i, packet_class in enumerate(packet_class_list + extra_packet_class_list):
     src_host, dst_host = packet_class._src_ip, packet_class._dst_ip
     src_switch, dst_switch = packet_class.endpoints()
     # group[(src_ip == src_host) & (dst_ip == dst_host)] += \
     #     simple_routing(bandwidth_require[src_host, dst_host])
-    req = bandwidth_require[src_host, dst_host]
+    if packet_class in packet_class_list:
+        req = bandwidth_require[src_host, dst_host]
+    else:
+        req = 0
     # req = randint(1, 2)
     # req = 0.01
 
@@ -168,10 +182,10 @@ for i, packet_class in enumerate(packet_class_list):
         )
         # pass
 
-# print_time('finish create automaton group: ')
+print_time('finish create automaton group: ')
 
 # problem = group @ topo
-problem = group._build_path_graph(topo, adaptive_depth_range=5)
+problem = group._build_path_graph(topo, adaptive_depth_range=ADAPTIVE)
 
 print_time('finish searching path: ')
 
