@@ -230,18 +230,18 @@ cdef unordered_map[vector[int], unordered_map[int, vector[int]]] *collect_model(
                 j[i[k]] += 1
             # printf('finish graph %d\n', i[k])
             i[k] += 1
-    merge_split_map_list(path_map_list)
+    merge_splited_map_list(path_map_list)
     return new unordered_map[vector[int], unordered_map[int, vector[int]]](path_map_list[0])
 
-cdef merge_split_map_list(
-    vector[unordered_map[vector[int], unordered_map[int, vector[int]]]] &split_map_list
+cdef merge_splited_map_list(
+    vector[unordered_map[vector[int], unordered_map[int, vector[int]]]] &splited_map_list
 ):
-    cdef int map_list_length = split_map_list.size()
+    cdef int map_list_length = splited_map_list.size()
     cdef int i = 1, j
     while i < map_list_length:
         printf('start merging at level %d\n', i)
         for j in prange(0, map_list_length, i * 2 , nogil=True):
-            merge_two(split_map_list, j, j + i, map_list_length)
+            merge_two(splited_map_list, j, j + i, map_list_length)
         i *= 2
 
 cdef void merge_two(
@@ -250,22 +250,37 @@ cdef void merge_two(
 ) nogil:
     if b >= max:
         return
+    if splited_map_list[a].size() < splited_map_list[b].size():
+        # printf('exchange1\n')
+        merge_two(splited_map_list, b, a, max)
+        splited_map_list[a].swap(splited_map_list[b])
     # printf("mering: %d %d\n", a, b)
     cdef int graph_count = splited_map_list.size()
     cdef int i
     for dep_path in splited_map_list[b]:
         if splited_map_list[a].count(dep_path.first) == 0:
-            splited_map_list[a][dep_path.first] = splited_map_list[b][dep_path.first]
+            splited_map_list[a][dep_path.first] = unordered_map[int, vector[int]]()
+            splited_map_list[a][dep_path.first].swap(splited_map_list[b][dep_path.first])
         else:
             for i in range(graph_count):
                 if not splited_map_list[b][dep_path.first].count(i):
                     continue
                 if splited_map_list[a][dep_path.first].count(i):
-                    splited_map_list[a][dep_path.first][i].insert(
-                        splited_map_list[a][dep_path.first][i].end(),
-                        splited_map_list[b][dep_path.first][i].begin(),
-                        splited_map_list[b][dep_path.first][i].end(),
-                    )
+                    if splited_map_list[a][dep_path.first][i].size() > splited_map_list[b][dep_path.first][i].size():
+                        splited_map_list[a][dep_path.first][i].insert(
+                            splited_map_list[a][dep_path.first][i].end(),
+                            splited_map_list[b][dep_path.first][i].begin(),
+                            splited_map_list[b][dep_path.first][i].end(),
+                        )
+                    else:
+                        # printf('exchange2\n')
+                        splited_map_list[b][dep_path.first][i].insert(
+                            splited_map_list[b][dep_path.first][i].end(),
+                            splited_map_list[a][dep_path.first][i].begin(),
+                            splited_map_list[a][dep_path.first][i].end(),
+                        )
+                        splited_map_list[a][dep_path.first][i].swap(
+                            splited_map_list[b][dep_path.first][i])
                 else:
                     splited_map_list[a][dep_path.first][i] = splited_map_list[b][dep_path.first][i]
 
@@ -356,11 +371,19 @@ cdef void extend_single_dep(
                     continue
                 # print(f'{i}: {dep_path.second[i].size()}')
                 # printf('%d: %lu\n', i, splited_map[0][dep][i].size())
-                splited_map[k][i].insert(
-                    splited_map[k][i].end(),
-                    dep_path2.second[i].begin(),
-                    dep_path2.second[i].end()
-                )
+                if splited_map[k][i].size() > dep_path2.second[i].size():
+                    splited_map[k][i].insert(
+                        splited_map[k][i].end(),
+                        dep_path2.second[i].begin(),
+                        dep_path2.second[i].end()
+                    )
+                else:
+                    dep_path2.second[i].insert(
+                        dep_path2.second[i].end(),
+                        splited_map[k][i].begin(),
+                        splited_map[k][i].end()
+                    )
+                    splited_map[k][i].swap(dep_path2.second[i])
                 # print(f'{i}: {dep_path.second[i].size()}')
 
 cdef bint first_should_include_second(vector[int] &dep1, vector[int] &dep2) nogil:
