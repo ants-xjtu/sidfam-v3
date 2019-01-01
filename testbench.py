@@ -15,5 +15,5 @@ if len(argv) <= 1:
 
 else:
     for x in range(complex_range[0], complex_range[1] + 1):
-        while system(f'PYTHONPATH=. python examples/09-firewall-dns.py dataset/{argv[1]} 0 {x} | ./time_sum.py') != 0:
+        while system(f'PYTHONPATH=. python examples/09-firewall-dns.py {argv[1]} 0 {x} | ./time_sum.py') != 0:
             pass

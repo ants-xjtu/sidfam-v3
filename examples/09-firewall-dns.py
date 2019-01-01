@@ -18,6 +18,7 @@ DIST_TO_EACH_OTHER_MIN = 0
 SELECT_RATE = 0.1
 ADAPTIVE = 5
 AUTO_COMPLEX = int(argv[3]) if len(argv) > 3 else 1
+TOL = 3
 
 print_time('program start: ')
 
@@ -39,7 +40,8 @@ draw(topo_graph, with_labels=True)
 plt.savefig('topo.png')
 
 topo_nodes = topo_graph.nodes()
-firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
+# firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
+firewalls = [1, 2]
 print(f'chosen firewalls: {firewalls}')
 centers = [
     n for n in topo_nodes
@@ -147,14 +149,14 @@ for packet_class in packet_class_list + extra_packet_class_list:
     # ):
     # if src_switch == center or dst_switch == center:
     if (src_switch in centers or dst_switch in centers) and \
-            (s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2):
+            (s0 + ff + d1 < sd + TOL or s1 + ff + d0 < sd + TOL):
         selected_packet_class.append(packet_class)
 
 print(f'selected count: {len(selected_packet_class)}')
 if len(selected_packet_class) < demand_count * SELECT_RATE:
     print('selected packet classes is too few, aborting')
     exit()
-selected_packet_class = sample(selected_packet_class, int(demand_count * SELECT_RATE))
+selected_packet_class = set(sample(selected_packet_class, int(demand_count * SELECT_RATE)))
 for i, packet_class in enumerate(packet_class_list + extra_packet_class_list):
     src_host, dst_host = packet_class._src_ip, packet_class._dst_ip
     src_switch, dst_switch = packet_class.endpoints()
@@ -193,6 +195,9 @@ for i, packet_class in enumerate(packet_class_list + extra_packet_class_list):
             simple_routing(req), i, src_switch, dst_switch
         )
         # pass
+
+    if (i + 1) % 1000 == 0:
+        print(i + 1)
 
 print_time('finish create automaton group: ')
 

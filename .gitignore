@@ -16,3 +16,6 @@ __pycache__/
 # problem data, topo picture
 *.lp
 *.png
+
+# homemade data
+dataset/fattree
