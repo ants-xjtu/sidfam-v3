@@ -124,6 +124,19 @@ cdef int build_path_graph(
         group.path_graph_list.push_back(graph_map[graph_id])
 
     print('build path graph finish')
+
+    cdef int max_graph_node_count = 0, max_graph_edge_count = 0
+    for key_graph in graph_map:
+        node_count = key_graph.second.node_list.size()
+        edge_count = sum([node_edge.size() for node_edge in key_graph.second.edge_map[0]])
+        if max_graph_node_count < node_count:
+            max_graph_node_count = node_count
+        if max_graph_edge_count < edge_count:
+            max_graph_edge_count = edge_count
+
+    print(f'max #node: {max_graph_node_count}')
+    print(f'max #edge: {max_graph_edge_count}')
+
     return 0
 
 cdef collect_path(

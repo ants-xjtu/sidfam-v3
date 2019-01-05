@@ -163,16 +163,17 @@ cdef class AutoGroup:
         pass
 
     def _build_path_graph(
-        self, Topo topo, max_depth=14, adaptive_depth_range=5
+        self, Topo topo, max_depth=14, adaptive_depth_range=5, drop_problem=False
     ):
         build_path_graph(self.c_auto_group, topo.c_topo, topo.c_switch_count)
         print_time('finish building path graph: ')
         # print('after build')
-        return Problem(
-            self, max_depth,
-            topo.shortest_path_length_map, adaptive_depth_range,
-            topo
-        )
+        if not drop_problem:
+            return Problem(
+                self, max_depth,
+                topo.shortest_path_length_map, adaptive_depth_range,
+                topo
+            )
 
     def __matmul__(self, topo):
         return self._build_path_graph(topo)
