@@ -12,6 +12,7 @@ from random import sample, randint, choice
 from networkx import shortest_path_length, draw, has_path
 from matplotlib import pyplot as plt
 
+# 一些接下来用到的常量，其中影响求值过程的只有`ADAPTIVE`，影响方式参见论文。
 FIREWALL_DEGREE_MIN = 30
 DIST_TO_FIREWALL_MAX = 7
 DIST_TO_EACH_OTHER_MIN = 0
@@ -20,11 +21,17 @@ ADAPTIVE = 5
 AUTO_COMPLEX = int(argv[3]) if len(argv) > 3 else 1
 TOL = 3
 
+# `print_time`会打印两次调用`print_time`之间的时间间隔
 print_time('program start: ')
 
+# 从命令行参数（`argv[1]`）中指定的文件路径加载拓扑
+# 最初的测试应该使用风筝拓扑而不是`dataset`文件夹下的其他复杂拓扑。
 topo, bandwidth_resource, packet_class_list, bandwidth_require = \
     from_dataset(Path(argv[1]))
 
+# 接下来的部分全部是复杂（且用不到）的生成Automaton group的过程，看个热闹就好
+# 可以直接跳到`problem = ...`那一行
+# 根据实验要求，酌情删除或「捏造」一些数据流
 demand_count = int(argv[2]) if len(argv) > 2 and int(argv[2]) > 0 else len(packet_class_list)
 extra_packet_class_list = []
 if len(packet_class_list) > demand_count:
@@ -36,9 +43,11 @@ elif len(packet_class_list) < demand_count:
 
 print(f'actual packet class count: {len(packet_class_list)}')
 topo_graph, _c, _r = _from_dataset_topo(Path(argv[1]))
+# 将拓扑绘制为PNG图片，检查与预期是否一致。对于Fattree非常有用。
 draw(topo_graph, with_labels=True)
 plt.savefig('topo.png')
 
+# 从拓扑中选出两个核心位置上的交换机放置防火墙
 topo_nodes = topo_graph.nodes()
 firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
 # firewalls = [1, 2]
@@ -50,6 +59,7 @@ centers = [
         shortest_path_length(topo_graph, n, firewalls[1]) < 3)
 ]
 
+# 定义SNAP变量，断言和更新操作
 orphan = Variable()
 susp_client = Variable()
 blacklist = Variable()
@@ -64,11 +74,13 @@ guard_list = [
 require_list = [no_require]
 update_list = [
     no_update,
+    # `<<`为赋值操作
     (orphan << 1) & (susp_client << susp_client + 1) & (blacklist << 1),
     (orphan << 1) & (susp_client << susp_client + 1),
     (orphan << 0) & (susp_client << susp_client - 1)
 ]
 
+# 下面分别定义了一个简单的Automaton和一个复杂的Automaton。两者都不太适合接下来的实验，等开会讨论后@whoiscc把合适的Automaton添加上。
 def simple_routing(bw_req):
     req = len(require_list)
     require_list.append(bandwidth * bw_req)
@@ -129,6 +141,7 @@ def ff_gu(firewall_a, firewall_b, bw_req, g, u):
     return auto
 
 
+# 创建Automaton group，根据实验需要创建上面的两种Automaton，并把它们添加到Group当中
 group = AutoGroup(packet_class_list, guard_list, require_list, update_list)
 selected_packet_class = []
 ff = shortest_path_length(topo_graph, firewalls[0], firewalls[1])
@@ -148,6 +161,8 @@ for packet_class in packet_class_list + extra_packet_class_list:
     #     s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2
     # ):
     # if src_switch == center or dst_switch == center:
+    
+    # 只有被选中的孩子才能拥有复杂的Automaton哦
     if (src_switch in centers or dst_switch in centers) and \
             (s0 + ff + d1 < sd + TOL or s1 + ff + d0 < sd + TOL):
         selected_packet_class.append(packet_class)
@@ -201,18 +216,27 @@ for i, packet_class in enumerate(packet_class_list + extra_packet_class_list):
 
 print_time('finish create automaton group: ')
 
+# 在通过某种途径得到Automaton group和拓扑以后，就可以按照下面的顺序逐渐求解问题了
+# 分成好几步没有什么特别的原因，只是因为之前的实验需要测量每一步的时间
+# 第一步是根据配置（也就是Automaton group）和拓扑生成问题实例
+# 对于比较小的拓扑（比如风筝），不需要指定`adaptive_depth_range`，可以使用被注释掉的这种比较简略的写法
 # problem = group @ topo
 problem = group._build_path_graph(topo, adaptive_depth_range=ADAPTIVE)
 
 print_time('finish searching path: ')
 
+# 接下来将问题拆分成大量的小问题，从而使其可以并行解决
 splited = problem.split()
 
 print_time('finish spliting problem: ')
 
+# 在最终解决问题之前，将带宽资源情况传入模型（换言之，带宽资源可以一直到这个时候再确定下来）
 bandwidth.map = bandwidth_resource
+# 最后解决问题，其实是一个一个地尝试解决小问题
 rule = splited.solve()
 
 print_time('problem solved: ')
 
+# 解决完以后，可以把得到的结果打印出来进行观察。切勿在除了风筝以外的拓扑上执行这行代码
+# 换句话说，我其实根本不知道在复杂拓扑上求解的结果到底对不对
 # print(rule)
