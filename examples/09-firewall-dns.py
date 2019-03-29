@@ -40,8 +40,8 @@ draw(topo_graph, with_labels=True)
 plt.savefig('topo.png')
 
 topo_nodes = topo_graph.nodes()
-# firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
-firewalls = [1, 2]
+firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
+# firewalls = [1, 2]
 print(f'chosen firewalls: {firewalls}')
 centers = [
     n for n in topo_nodes
