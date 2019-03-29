@@ -42,8 +42,8 @@ draw(topo_graph, with_labels=True)
 plt.savefig('topo.png')
 
 topo_nodes = topo_graph.nodes()
-# firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
-firewalls = [1, 2]
+firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
+# firewalls = [1, 2]
 print(f'chosen firewalls: {firewalls}')
 centers = [
     n for n in topo_nodes
@@ -225,6 +225,7 @@ print_time('problem solved: ')
 # ------------------------------------------------------------------------------
 
 link_classes = {}
+all_packet_class = packet_class_list + extra_packet_class_list
 for sw, sw_rule in rule.switch_action_map.items():
     for pc_g, u_nh in sw_rule.items():
         nh = u_nh[1]
@@ -234,7 +235,7 @@ for sw, sw_rule in rule.switch_action_map.items():
         pc = pc_g[0]
         if link not in link_classes:
             link_classes[link] = []
-        link_classes[link].append(packet_class_list[pc])
+        link_classes[link].append(all_packet_class[pc])
 
 for link in link_classes:
     group = AutoGroup(packet_class_list, guard_list, require_list, update_list)

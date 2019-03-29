@@ -4,7 +4,7 @@ from sys import argv
 
 topo_size = [160]
 demands_range = (100, 10000)
-complex_range = (1, 50)
+complex_range = (34, 50)
 
 # collect_script = './time_sum.py'
 collect_script = './graph_node_edge.py'
