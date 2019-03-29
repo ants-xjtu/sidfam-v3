@@ -29,35 +29,35 @@ print_time('program start: ')
 topo, bandwidth_resource, packet_class_list, bandwidth_require = \
     from_dataset(Path(argv[1]))
 
-# # 接下来的部分全部是复杂（且用不到）的生成Automaton group的过程，看个热闹就好
-# # 可以直接跳到`problem = ...`那一行
-# # 根据实验要求，酌情删除或「捏造」一些数据流
-# demand_count = int(argv[2]) if len(argv) > 2 and int(argv[2]) > 0 else len(packet_class_list)
-# extra_packet_class_list = []
-# if len(packet_class_list) > demand_count:
-#     packet_class_list = sample(packet_class_list, demand_count)
-# elif len(packet_class_list) < demand_count:
-#     for i in range(demand_count - len(packet_class_list)):
-#         pc = choice(packet_class_list)
-#         extra_packet_class_list.append(PacketClass(pc._src_ip, pc._dst_ip, pc._src_switch, pc._dst_switch))
+# 接下来的部分全部是复杂（且用不到）的生成Automaton group的过程，看个热闹就好
+# 可以直接跳到`problem = ...`那一行
+# 根据实验要求，酌情删除或「捏造」一些数据流
+demand_count = int(argv[2]) if len(argv) > 2 and int(argv[2]) > 0 else len(packet_class_list)
+extra_packet_class_list = []
+if len(packet_class_list) > demand_count:
+    packet_class_list = sample(packet_class_list, demand_count)
+elif len(packet_class_list) < demand_count:
+    for i in range(demand_count - len(packet_class_list)):
+        pc = choice(packet_class_list)
+        extra_packet_class_list.append(PacketClass(pc._src_ip, pc._dst_ip, pc._src_switch, pc._dst_switch))
 
-# print(f'actual packet class count: {len(packet_class_list)}')
-# topo_graph, _c, _r = _from_dataset_topo(Path(argv[1]))
-# # 将拓扑绘制为PNG图片，检查与预期是否一致。对于Fattree非常有用。
-# draw(topo_graph, with_labels=True)
-# plt.savefig('topo.png')
+print(f'actual packet class count: {len(packet_class_list)}')
+topo_graph, _c, _r = _from_dataset_topo(Path(argv[1]))
+# 将拓扑绘制为PNG图片，检查与预期是否一致。对于Fattree非常有用。
+draw(topo_graph, with_labels=True)
+plt.savefig('topo.png')
 
-# # 从拓扑中选出两个核心位置上的交换机放置防火墙
-# topo_nodes = topo_graph.nodes()
-# firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
-# # firewalls = [1, 2]
-# print(f'chosen firewalls: {firewalls}')
-# centers = [
-#     n for n in topo_nodes
-#     if has_path(topo_graph, n, firewalls[0]) and
-#         (shortest_path_length(topo_graph, n, firewalls[0]) < 3 or
-#         shortest_path_length(topo_graph, n, firewalls[1]) < 3)
-# ]
+# 从拓扑中选出两个核心位置上的交换机放置防火墙
+topo_nodes = topo_graph.nodes()
+firewalls = sample([n for n in topo_nodes if topo_graph.degree(n) >= FIREWALL_DEGREE_MIN], 2)
+# firewalls = [1, 2]
+print(f'chosen firewalls: {firewalls}')
+centers = [
+    n for n in topo_nodes
+    if has_path(topo_graph, n, firewalls[0]) and
+        (shortest_path_length(topo_graph, n, firewalls[0]) < 3 or
+        shortest_path_length(topo_graph, n, firewalls[1]) < 3)
+]
 
 # 定义SNAP变量，断言和更新操作
 orphan = Variable()
@@ -144,34 +144,34 @@ def ff_gu(firewall_a, firewall_b, bw_req, g, u):
 # 创建Automaton group，根据实验需要创建上面的两种Automaton，并把它们添加到Group当中
 group = AutoGroup(packet_class_list, guard_list, require_list, update_list)
 selected_packet_class = []
-# ff = shortest_path_length(topo_graph, firewalls[0], firewalls[1])
-# for packet_class in packet_class_list + extra_packet_class_list:
-#     src_host, dst_host = packet_class._src_ip, packet_class._dst_ip
-#     src_switch, dst_switch = packet_class.endpoints()
-#     s0 = shortest_path_length(topo_graph, src_switch, firewalls[0])
-#     s1 = shortest_path_length(topo_graph, src_switch, firewalls[1])
-#     d0 = shortest_path_length(topo_graph, dst_switch, firewalls[0])
-#     d1 = shortest_path_length(topo_graph, dst_switch, firewalls[1])
-#     sd = shortest_path_length(topo_graph, src_switch, dst_switch)
-#     # if ((
-#     #     s0 <= DIST_TO_FIREWALL_MAX and d1 <= DIST_TO_FIREWALL_MAX
-#     # ) or (
-#     #     s1 <= DIST_TO_FIREWALL_MAX and d0 <= DIST_TO_FIREWALL_MAX
-#     # )) and sd > DIST_TO_EACH_OTHER_MIN and (
-#     #     s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2
-#     # ):
-#     # if src_switch == center or dst_switch == center:
+ff = shortest_path_length(topo_graph, firewalls[0], firewalls[1])
+for packet_class in packet_class_list + extra_packet_class_list:
+    src_host, dst_host = packet_class._src_ip, packet_class._dst_ip
+    src_switch, dst_switch = packet_class.endpoints()
+    s0 = shortest_path_length(topo_graph, src_switch, firewalls[0])
+    s1 = shortest_path_length(topo_graph, src_switch, firewalls[1])
+    d0 = shortest_path_length(topo_graph, dst_switch, firewalls[0])
+    d1 = shortest_path_length(topo_graph, dst_switch, firewalls[1])
+    sd = shortest_path_length(topo_graph, src_switch, dst_switch)
+    # if ((
+    #     s0 <= DIST_TO_FIREWALL_MAX and d1 <= DIST_TO_FIREWALL_MAX
+    # ) or (
+    #     s1 <= DIST_TO_FIREWALL_MAX and d0 <= DIST_TO_FIREWALL_MAX
+    # )) and sd > DIST_TO_EACH_OTHER_MIN and (
+    #     s0 + ff + d1 < sd + 2 or s1 + ff + d0 < sd + 2
+    # ):
+    # if src_switch == center or dst_switch == center:
     
-#     # 只有被选中的孩子才能拥有复杂的Automaton哦
-#     if (src_switch in centers or dst_switch in centers) and \
-#             (s0 + ff + d1 < sd + TOL or s1 + ff + d0 < sd + TOL):
-#         selected_packet_class.append(packet_class)
+    # 只有被选中的孩子才能拥有复杂的Automaton哦
+    if (src_switch in centers or dst_switch in centers) and \
+            (s0 + ff + d1 < sd + TOL or s1 + ff + d0 < sd + TOL):
+        selected_packet_class.append(packet_class)
 
-# print(f'selected count: {len(selected_packet_class)}')
-# if len(selected_packet_class) < demand_count * SELECT_RATE:
-#     print('selected packet classes is too few, aborting')
-#     exit()
-# selected_packet_class = set(sample(selected_packet_class, int(demand_count * SELECT_RATE)))
+print(f'selected count: {len(selected_packet_class)}')
+if len(selected_packet_class) < demand_count * SELECT_RATE:
+    print('selected packet classes is too few, aborting')
+    exit()
+selected_packet_class = set(sample(selected_packet_class, int(demand_count * SELECT_RATE)))
 for i, packet_class in enumerate(packet_class_list + extra_packet_class_list):
     src_host, dst_host = packet_class._src_ip, packet_class._dst_ip
     src_switch, dst_switch = packet_class.endpoints()
@@ -185,25 +185,25 @@ for i, packet_class in enumerate(packet_class_list + extra_packet_class_list):
     # req = 0.01
 
     if packet_class in selected_packet_class:
-#         if dst_switch in centers:
-#             group._append_automaton(
-#                 ff_gu(firewalls[0], firewalls[1], req, 1, 1),
-#                 i, src_switch, dst_switch
-#             )
-#             group._append_automaton(
-#                 ff_gu(firewalls[0], firewalls[1], req, 2, 2),
-#                 i, src_switch, dst_switch
-#             )
-#         elif src_switch in centers:
-#             group._append_automaton(
-#                 ff_gu(firewalls[0], firewalls[1], req, 3, 3),
-#                 i, src_switch, dst_switch
-#             )
-#             group._append_automaton(
-#                 ff_gu(firewalls[0], firewalls[1], req, 4, 0),
-#                 i, src_switch, dst_switch
-#             )
-#         else:
+        if dst_switch in centers:
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 1, 1),
+                i, src_switch, dst_switch
+            )
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 2, 2),
+                i, src_switch, dst_switch
+            )
+        elif src_switch in centers:
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 3, 3),
+                i, src_switch, dst_switch
+            )
+            group._append_automaton(
+                ff_gu(firewalls[0], firewalls[1], req, 4, 0),
+                i, src_switch, dst_switch
+            )
+        else:
             assert False
     else:
         group._append_automaton(
