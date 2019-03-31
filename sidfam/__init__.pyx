@@ -143,6 +143,8 @@ cdef class AutoGroup:
             self.c_auto_group, automaton.c_automaton,
             packet_class, src_switch, dst_switch
         )
+        pc = self.packet_class_list[packet_class]
+        # print(pc._src_switch, pc._dst_switch)
         self.automaton_list.append(automaton)
 
     def __getitem__(self, packet_class_constr):
@@ -206,6 +208,7 @@ cdef class Problem:
         print('split problem')
         cdef unordered_map[vector[int], unordered_map[int, vector[int]]]* raw_split_map
         raw_split_map = collect_model(self.auto_group.c_auto_group)
+
         print('extending problems')
         self.c_split_map = extend_splited(
             raw_split_map, self.auto_group.c_auto_group.path_graph_list.size())

@@ -69,6 +69,7 @@ cdef Model create_model(
     cdef Model c_model
     c_model.problem = b''
     # for graph_path in model_path:
+    # print(model_path)
     for i in range(graph_count):
         constr_file.append(b'  ')
         if model_path[i].size() == 0:

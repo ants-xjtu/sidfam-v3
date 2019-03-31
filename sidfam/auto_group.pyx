@@ -330,6 +330,7 @@ cdef unordered_map[vector[int], vector[vector[int]]] *extend_splited(
     cdef vector[vector[int]] keys
     for dep_path in saved_splited_map[0]:
         keys.push_back(dep_path.first)
+    # print(keys)
     cdef int dep_count = keys.size()
     cdef vector[vector[vector[int]]] splited_map2
     splited_map2.resize(dep_count)
@@ -338,7 +339,8 @@ cdef unordered_map[vector[int], vector[vector[int]]] *extend_splited(
     need_extend.resize(dep_count, True)
     for k in range(dep_count):
         # print(keys[k])
-        if any([d == 0 for d in keys[k]]):
+        not_dep = [d == 0 for d in keys[k]]
+        if any(not_dep) and not all(not_dep):
             need_extend[k] = False
     # print(need_extend)
 
