@@ -21,7 +21,7 @@ $ source env/bin/activate
 * `sidfam`求值器模块，项目核心
   * `automaton/auto_group/path_graph.pyx/pyd`CODER三大核心抽象的实现和接口定义。具体参考CODER论文。
   * `model.pyx/pyd`将CODER模型转化为MILP的核心代码。在`create_model`函数中为LP添加了约束（目前有distinguish和require两种约束）。对其进行修改需要了解：
-    1. Cython基本语法 
+    1. Cython基本语法
     2. lp文件格式
     3. Path graph数据结构，在`path_graph.pyd`中定义
   * `__init__.pyx`和`language.py`以及`gallery.py`力图为上层Python用户提供一个不涉及底层操作又足够灵活的平台。`__init__.pyx`允许用户以简练的语法创建Automaton group，`language.py`则提供了Automaton group中必不可少的组成元素，而`gallery.py`中包含了人类的好朋友——风筝拓扑，以及从拓扑数据集中创建拓扑的帮助函数。
@@ -63,3 +63,13 @@ $ source env/bin/activate
 ```
 
 只需要指定一个方向的连接即可，双向共享带宽资源。
+
+# 接下来怎么办（Updated）
+
+在风筝拓扑中，只指定一条从A到C的数据流，运行`09`，把结尾处改为`rule = splited.solve(save=True)`并打印`rule`，观察结果中是否的确包含合适的规则将数据包从A输送到C。
+
+增加几条数据流，重复观察。~~确保原来的代码写的是对的。~~
+
+浏览`sidfam/model.pyx`中的代码与注释。设计`extra`参数并构造所需要的约束。选择合适的数据流，验证约束起到了作用。
+
+> 由于当前配置中没有guard和update，可以先先写个无脑一点的约束练练手，接下来开会讨论实验使用的配置。
