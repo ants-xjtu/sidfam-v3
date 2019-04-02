@@ -16,5 +16,6 @@ cdef Model create_model(
     vector[vector[float]] &require_list,
     vector[unordered_map[pair[int, int], float]] &resource_list,
     vector[bint] &shared_resource,
-    int packet_class_count
+    int packet_class_count,
+    extra
 )

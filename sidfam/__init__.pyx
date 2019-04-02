@@ -230,7 +230,7 @@ cdef class SplitedProblem:
         self.problem = problem
         assert self.problem.c_split_map != NULL
 
-    def solve(self, save=False):
+    def solve(self, save=False, extra=None):
         require_list, res_map, shared_res = self._preprocess_req()
 
         cdef int i = 0
@@ -241,7 +241,8 @@ cdef class SplitedProblem:
             c_model = create_model(
                 model_path, group, self.problem.topo.c_switch_count,
                 require_list, res_map, shared_res,
-                len(self.auto_group.packet_class_list)
+                len(self.auto_group.packet_class_list),
+                extra
             )
             if c_model.problem == b'':
                 print('skipping impossible model')
